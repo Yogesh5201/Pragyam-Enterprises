@@ -5,10 +5,11 @@ const nextConfig = {
     domains: ['images.unsplash.com', 'via.placeholder.com'],
   },
   async rewrites() {
+    const apiTarget = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:4000/api/:path*',
+        destination: `${apiTarget}/api/:path*`,
       },
     ];
   },
