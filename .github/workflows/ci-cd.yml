@@ -1,0 +1,71 @@
+name: PRAGYAM ENTERPRISES - CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, production ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-verify:
+    name: Run Confidentiality & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm install --install-links
+
+      - name: Build Shared Packages (@pragyam/types & @pragyam/shared)
+        run: |
+          npm run build --workspace=@pragyam/types
+          npm run build --workspace=@pragyam/shared
+
+      - name: Execute Mandatory Confidentiality & RBAC Tests
+        run: npm test --workspace=@pragyam/api
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key-pragyam
+
+      - name: Compile Backend API
+        run: npm run build --workspace=@pragyam/api
+
+      - name: Compile Next.js Web & Admin Production Build
+        run: npm run build --workspace=@pragyam/web
+
+  docker-build:
+    name: Build & Push Production Docker Images
+    needs: test-and-verify
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.api
+          push: false
+          tags: pragyam-enterprises/api:latest
+
+      - name: Build Web Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.web
+          push: false
+          tags: pragyam-enterprises/web:latest

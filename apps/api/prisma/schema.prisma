@@ -1,0 +1,507 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  BUYER
+  SELLER
+}
+
+enum Status {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+enum BusinessType {
+  RICE_MILLER
+  WHOLESALER
+  EXPORTER
+  COMMODITY_TRADER
+  COMMISSION_AGENT
+  INSTITUTIONAL_BUYER
+  RETAILER
+}
+
+enum RiceCategory {
+  STEAM_RICE
+  SELLA_RICE
+  GOLDEN_SELLA_RICE
+  LEMON_SELLA_RICE
+  RAW_RICE
+  BROWN_RICE
+}
+
+enum RiceClassification {
+  BASMATI
+  NON_BASMATI
+}
+
+enum PackagingType {
+  JUTE_BAG_50KG
+  PP_BAG_50KG
+  PP_BAG_25KG
+  BOPP_BAG_25KG
+  NON_WOVEN_BAG_10KG
+  LOOSE_BULK
+  CUSTOM
+}
+
+enum BrokerageType {
+  FIXED_AMOUNT
+  PER_METRIC_TONNE
+  PER_QUINTAL
+  PERCENTAGE_OF_VALUE
+  CUSTOM_NEGOTIATED
+}
+
+enum BrokeragePayee {
+  SELLER
+  BUYER
+  SPLIT
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED_BY_ADMIN
+  SOLD_OUT
+  ARCHIVED
+}
+
+enum OrderStatus {
+  DRAFT
+  NEGOTIATION
+  AWAITING_CONFIRMATION
+  CONFIRMED
+  PROCESSING
+  READY_FOR_DISPATCH
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum TransportStatus {
+  TRANSPORT_NOT_ASSIGNED
+  TRANSPORT_ASSIGNED
+  VEHICLE_LOADING
+  LOADED
+  DISPATCHED
+  IN_TRANSIT
+  REACHED_DESTINATION
+  DELIVERED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  UPI
+  NEFT
+  RTGS
+  IMPS
+  CHEQUE
+  ONLINE_GATEWAY
+}
+
+enum PaymentType {
+  GOODS_PAYMENT
+  BROKERAGE_PAYMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  REFUNDED
+}
+
+// -------------------------------------------------------------
+// USER AND PROFILE MODELS
+// -------------------------------------------------------------
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  role         Role
+  status       Status       @default(ACTIVE)
+  mfaSecret    String?
+  mfaEnabled   Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  buyerProfile  BuyerProfile?
+  sellerProfile SellerProfile?
+  adminProfile  AdminProfile?
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@index([email, role])
+}
+
+model BuyerProfile {
+  id                  String             @id @default(uuid())
+  userId              String             @unique
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName            String
+  companyName         String
+  phone               String
+  address             String
+  city                String
+  district            String
+  state               String
+  pinCode             String
+  gstin               String?
+  panNumber           String?
+  businessType        BusinessType
+  isVerified          Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  requirements        PurchaseRequirement[]
+  enquiries           PurchaseEnquiry[]
+  purchaseOrders      PurchaseOrder[]
+  payments            PaymentRecord[]
+}
+
+model SellerProfile {
+  id                   String            @id @default(uuid())
+  userId               String            @unique
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName             String
+  companyName          String
+  phone                String
+  address              String
+  city                 String
+  district             String
+  state                String
+  pinCode              String
+  gstin                String?
+  panNumber            String?
+  businessType         BusinessType
+  millName             String
+  millCapacityMTPerDay Decimal?          @db.Decimal(10, 2)
+  isVerified           Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  listings             InventoryListing[]
+  purchaseOrders       PurchaseOrder[]
+  payments             PaymentRecord[]
+}
+
+model AdminProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName    String
+  phone       String
+  roleTitle   String   @default("Super Administrator")
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// -------------------------------------------------------------
+// INVENTORY & QUALITY SPECIFICATIONS
+// -------------------------------------------------------------
+model InventoryListing {
+  id                      String             @id @default(uuid())
+  sellerId                String
+  seller                  SellerProfile      @relation(fields: [sellerId], references: [id])
+  anonymousCode           String             @unique // e.g. PRG-1025
+  category                RiceCategory
+  variety                 String
+  classification          RiceClassification
+  availableQuantityMT     Decimal            @db.Decimal(12, 3)
+  minOrderQuantityMT      Decimal            @db.Decimal(12, 3)
+  maxOrderQuantityMT      Decimal            @db.Decimal(12, 3)
+  askingPricePerQuintal   Decimal            @db.Decimal(10, 2)
+  askingPricePerMT        Decimal            @db.Decimal(12, 2)
+  brokerageOffered        Decimal            @db.Decimal(10, 2)
+  brokerageType           BrokerageType      @default(PER_METRIC_TONNE)
+  millLocation            String
+  dispatchLocation        String
+  generalizedDistrict     String             // Visible to buyer
+  generalizedState        String             // Visible to buyer
+  availabilityDate        DateTime
+  cropYear                String
+  packaging               PackagingType
+  stockImages             String[]
+  notes                   String?
+  status                  ListingStatus      @default(ACTIVE)
+  moderationFlagged       Boolean            @default(false)
+  moderationReason        String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  qualitySpec             RiceQualitySpec?
+  enquiries               PurchaseEnquiry[]
+  purchaseOrders          PurchaseOrder[]
+
+  @@index([category, status, generalizedState])
+}
+
+model RiceQualitySpec {
+  id                   String            @id @default(uuid())
+  listingId            String?           @unique
+  listing              InventoryListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requirementId        String?           @unique
+  requirement          PurchaseRequirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  grainLengthMm        Decimal           @db.Decimal(4, 2)
+  whiteness            Decimal           @db.Decimal(4, 1)
+  moisturePercent      Decimal           @db.Decimal(4, 2)
+  brokenPercent        Decimal           @db.Decimal(4, 2)
+  foreignMatterPercent Decimal           @db.Decimal(4, 2)
+  damagedGrainPercent  Decimal           @db.Decimal(4, 2)
+  chalkyGrainPercent   Decimal           @db.Decimal(4, 2)
+  yellowGrainPercent   Decimal           @db.Decimal(4, 2)
+  sortex               Boolean           @default(true)
+  cropYear             String
+}
+
+// -------------------------------------------------------------
+// PURCHASE REQUIREMENTS & ENQUIRIES
+// -------------------------------------------------------------
+model PurchaseRequirement {
+  id                   String             @id @default(uuid())
+  buyerId              String
+  buyer                BuyerProfile       @relation(fields: [buyerId], references: [id])
+  anonymousCode        String             @unique // e.g. REQ-4081
+  category             RiceCategory
+  variety              String
+  classification       RiceClassification
+  requiredQuantityMT   Decimal            @db.Decimal(12, 3)
+  targetPricePerQuintal Decimal           @db.Decimal(10, 2)
+  targetPricePerMT     Decimal            @db.Decimal(12, 2)
+  packagingRequirement PackagingType
+  deliveryCity         String
+  deliveryDistrict     String
+  deliveryState        String
+  deliveryPinCode      String?
+  requiredDeliveryDate DateTime
+  additionalNotes      String?
+  status               String             @default("OPEN")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  qualitySpec          RiceQualitySpec?
+
+  @@index([category, status])
+}
+
+model PurchaseEnquiry {
+  id                    String            @id @default(uuid())
+  enquiryCode           String            @unique // e.g. ENQ-7023
+  listingId             String
+  listing               InventoryListing  @relation(fields: [listingId], references: [id])
+  buyerId               String
+  buyer                 BuyerProfile      @relation(fields: [buyerId], references: [id])
+  requestedQuantityMT   Decimal           @db.Decimal(12, 3)
+  targetPricePerQuintal Decimal           @db.Decimal(10, 2)
+  buyerNotes            String?
+  adminStatus           String            @default("PENDING_REVIEW")
+  adminNotes            String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  negotiation           NegotiationRecord?
+
+  @@index([listingId, buyerId])
+}
+
+// -------------------------------------------------------------
+// NEGOTIATION RECORDS & PURCHASE ORDERS
+// -------------------------------------------------------------
+model NegotiationRecord {
+  id                   String           @id @default(uuid())
+  enquiryId            String           @unique
+  enquiry              PurchaseEnquiry  @relation(fields: [enquiryId], references: [id])
+  listingId            String
+  buyerId              String
+  sellerId             String
+  sellerInitialPrice   Decimal          @db.Decimal(10, 2)
+  buyerTargetPrice     Decimal          @db.Decimal(10, 2)
+  adminNegotiatedPrice Decimal          @db.Decimal(10, 2)
+  finalAgreedPrice     Decimal          @db.Decimal(10, 2)
+  agreedQuantityMT     Decimal          @db.Decimal(12, 3)
+  brokeragePerUnit     Decimal          @db.Decimal(10, 2)
+  brokerageType        BrokerageType
+  brokeragePayee       BrokeragePayee
+  buyerAgreed          Boolean          @default(false)
+  sellerAgreed         Boolean          @default(false)
+  adminConfirmed       Boolean          @default(false)
+  notes                String?
+  status               String           @default("ACTIVE")
+  history              Json             @default("[]")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  purchaseOrder        PurchaseOrder?
+}
+
+model PurchaseOrder {
+  id                    String            @id @default(uuid())
+  poNumber              String            @unique // e.g. PE-PO-2026-001
+  negotiationId         String?           @unique
+  negotiation           NegotiationRecord? @relation(fields: [negotiationId], references: [id])
+  listingId             String
+  listing               InventoryListing  @relation(fields: [listingId], references: [id])
+  buyerId               String
+  buyer                 BuyerProfile      @relation(fields: [buyerId], references: [id])
+  sellerId              String
+  seller                SellerProfile     @relation(fields: [sellerId], references: [id])
+  riceCategory          RiceCategory
+  riceVariety           String
+  classification        RiceClassification
+  quantityMT            Decimal           @db.Decimal(12, 3)
+  quantityQuintals      Decimal           @db.Decimal(12, 2)
+  agreedRatePerQuintal  Decimal           @db.Decimal(10, 2)
+  agreedRatePerMT       Decimal           @db.Decimal(12, 2)
+  totalGoodsValue       Decimal           @db.Decimal(14, 2)
+  packaging             PackagingType
+  dispatchLocation      String
+  deliveryLocation      String
+  deliveryDate          DateTime
+  paymentTerms          String
+  brokerageAmount       Decimal           @db.Decimal(10, 2)
+  brokerageType         BrokerageType
+  brokeragePayee        BrokeragePayee
+  status                OrderStatus       @default(CONFIRMED)
+  specialInstructions   String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  transportRecord       TransportRecord?
+  payments              PaymentRecord[]
+  invoices              InvoiceRecord[]
+
+  @@index([buyerId, sellerId, status])
+}
+
+// -------------------------------------------------------------
+// TRANSPORT & DISPATCH TRACKING
+// -------------------------------------------------------------
+model TransportRecord {
+  id                  String          @id @default(uuid())
+  poId                String          @unique
+  purchaseOrder       PurchaseOrder   @relation(fields: [poId], references: [id])
+  transporterName     String
+  vehicleNumber       String
+  driverName          String
+  driverPhone         String
+  biltyNumber         String
+  ewayBillNumber      String?
+  loadingLocation     String
+  deliveryLocation    String
+  loadingDate         DateTime
+  dispatchDate        DateTime
+  expectedDeliveryDate DateTime
+  quantityLoadedMT    Decimal         @db.Decimal(12, 3)
+  bagCount            Int
+  freightCharges      Decimal         @db.Decimal(10, 2)
+  freightStatus       String
+  status              TransportStatus @default(TRANSPORT_ASSIGNED)
+  statusLogs          Json            @default("[]")
+  proofOfDispatchUrl  String?
+  proofOfDeliveryUrl  String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+// -------------------------------------------------------------
+// PAYMENTS & GST INVOICES
+// -------------------------------------------------------------
+model PaymentRecord {
+  id               String          @id @default(uuid())
+  poId             String
+  purchaseOrder    PurchaseOrder   @relation(fields: [poId], references: [id])
+  paymentType      PaymentType
+  amount           Decimal         @db.Decimal(14, 2)
+  payerRole        Role
+  payerBuyerId     String?
+  buyer            BuyerProfile?   @relation(fields: [payerBuyerId], references: [id])
+  payerSellerId    String?
+  seller           SellerProfile?  @relation(fields: [payerSellerId], references: [id])
+  method           PaymentMethod
+  referenceNumber  String
+  paymentDate      DateTime        @default(now())
+  status           PaymentStatus   @default(PENDING)
+  verifiedByAdmin  Boolean         @default(false)
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([poId, status])
+}
+
+model InvoiceRecord {
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique // e.g. INV-PE-2026-0012
+  invoiceType    String        // BROKERAGE_INVOICE or GOODS_PROFORMA_INVOICE
+  poId           String
+  purchaseOrder  PurchaseOrder @relation(fields: [poId], references: [id])
+  issuerName     String
+  issuerGstin    String
+  clientName     String
+  clientGstin    String?
+  taxableAmount  Decimal       @db.Decimal(14, 2)
+  cgstPercent    Decimal       @db.Decimal(4, 2)
+  cgstAmount     Decimal       @db.Decimal(10, 2)
+  sgstPercent    Decimal       @db.Decimal(4, 2)
+  sgstAmount     Decimal       @db.Decimal(10, 2)
+  igstPercent    Decimal       @db.Decimal(4, 2)
+  igstAmount     Decimal       @db.Decimal(10, 2)
+  totalTax       Decimal       @db.Decimal(10, 2)
+  grandTotal     Decimal       @db.Decimal(14, 2)
+  hsnSacCode     String
+  invoiceDate    DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// -------------------------------------------------------------
+// AUDIT LOGS, NOTIFICATIONS & APP SETTINGS
+// -------------------------------------------------------------
+model AuditLog {
+  id         String   @id @default(uuid())
+  timestamp  DateTime @default(now())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  userRole   Role?
+  action     String
+  entityType String
+  entityId   String
+  details    String
+  ipAddress  String?
+
+  @@index([entityType, entityId, timestamp])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model AppSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}

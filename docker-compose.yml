@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 16 Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: pragyam-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: pragyam_user
+      POSTGRES_PASSWORD: PragyamDbSecurePass2026!
+      POSTGRES_DB: pragyam_brokerage_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pragyam_user -d pragyam_brokerage_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: pragyam-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  # Backend REST API
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: pragyam-api
+    restart: always
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://pragyam_user:PragyamDbSecurePass2026!@postgres:5432/pragyam_brokerage_db?schema=public
+      JWT_SECRET: pragyam-brokerage-super-secure-jwt-key-2026
+      JWT_REFRESH_SECRET: pragyam-brokerage-super-refresh-key-2026
+      ADMIN_BOOTSTRAP_EMAIL: admin@pragyam.com
+      ADMIN_BOOTSTRAP_PASSWORD: Pragyam@Admin2026!
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Next.js Web & Admin Portal
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    container_name: pragyam-web
+    restart: always
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:

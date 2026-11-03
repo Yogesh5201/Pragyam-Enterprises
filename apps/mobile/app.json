@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Pragyam Enterprises",
+    "slug": "pragyam-enterprises",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D3B2E"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pragyam.enterprises",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pragyam Enterprises requires camera access to photograph rice stock samples and verify dispatch bilty documents.",
+        "NSPhotoLibraryUsageDescription": "Pragyam Enterprises requires photo library access to upload grain quality inspection certificates."
+      }
+    },
+    "android": {
+      "package": "com.pragyam.enterprises",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D3B2E"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "pragyam-enterprises-prod"
+      }
+    }
+  }
+}

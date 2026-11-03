@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && npm install --install-links && npm run build --workspace=@pragyam/types && npm run build --workspace=@pragyam/shared && npm run build --workspace=@pragyam/web",
+  "outputDirectory": ".next"
+}
