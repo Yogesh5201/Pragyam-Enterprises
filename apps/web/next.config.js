@@ -11,7 +11,12 @@ const nextConfig = {
     domains: ['images.unsplash.com', 'via.placeholder.com'],
   },
   async rewrites() {
-    const apiTarget = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4000';
+    const apiTarget = process.env.INTERNAL_API_URL || process.env.API_URL;
+    // When no external API URL is configured (e.g. standalone Vercel deployment),
+    // Next.js native API route handlers in app/api handle all requests.
+    if (!apiTarget || apiTarget.includes('localhost')) {
+      return [];
+    }
     return [
       {
         source: '/api/:path*',
