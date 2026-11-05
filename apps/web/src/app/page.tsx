@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AnonymousInventoryListingDTO, RiceCategory, RiceClassification } from '@pragyam/types';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { AnonymousInventoryListingDTO, RiceCategory, RiceClassification, UserRole } from '@pragyam/types';
 import {
   Wheat,
   ShieldCheck,
@@ -15,7 +17,11 @@ import {
   Award,
   Truck,
   FileCheck2,
-  RefreshCw
+  RefreshCw,
+  LogIn,
+  UserPlus,
+  Building2,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../lib/apiClient';
@@ -25,7 +31,8 @@ import { RequirementModal } from '../components/RequirementModal';
 import { AddStockModal } from '../components/AddStockModal';
 
 export default function HomePage() {
-  const { role, t, language } = useAuth();
+  const router = useRouter();
+  const { role, isAuthenticated, t, language } = useAuth();
   const [listings, setListings] = useState<AnonymousInventoryListingDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -103,23 +110,79 @@ export default function HomePage() {
                 : 'India’s premier grain trading intermediary. Enforcing strict commercial confidentiality: direct buyer-seller interaction is prohibited, guaranteeing secure brokerage, verified mill stock, and dispute-free settlements.'}
             </p>
 
-            {/* Quick Actions */}
+            {/* Role-Specific Quick Actions */}
             <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                onClick={() => setIsRequirementModalOpen(true)}
-                className="bg-[#C5A059] hover:bg-amber-400 text-[#0D3B2E] px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition shadow-lg hover:shadow-xl"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>{t.postRequirement}</span>
-              </button>
+              {!isAuthenticated ? (
+                <>
+                  <a
+                    href="#catalog"
+                    className="bg-[#C5A059] hover:bg-amber-400 text-[#0D3B2E] px-6 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition shadow-lg hover:shadow-xl"
+                  >
+                    <Wheat className="w-4 h-4" />
+                    <span>Browse Rice Inventory</span>
+                  </a>
 
-              <button
-                onClick={() => setIsAddStockModalOpen(true)}
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition"
-              >
-                <PlusCircle className="w-4 h-4 text-[#C5A059]" />
-                <span>{t.addStock}</span>
-              </button>
+                  <Link
+                    href="/register"
+                    className="bg-white/10 hover:bg-white/20 text-white border border-white/25 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition backdrop-blur-sm"
+                  >
+                    <UserPlus className="w-4 h-4 text-[#C5A059]" />
+                    <span>Register to Trade</span>
+                  </Link>
+
+                  <Link
+                    href="/login"
+                    className="bg-emerald-950/60 hover:bg-emerald-900 text-amber-200 border border-emerald-500/30 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition"
+                  >
+                    <LogIn className="w-4 h-4 text-[#C5A059]" />
+                    <span>Client Sign In</span>
+                  </Link>
+                </>
+              ) : role === UserRole.BUYER ? (
+                <>
+                  <button
+                    onClick={() => setIsRequirementModalOpen(true)}
+                    className="bg-[#C5A059] hover:bg-amber-400 text-[#0D3B2E] px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition shadow-lg hover:shadow-xl"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>{t.postRequirement}</span>
+                  </button>
+
+                  <Link
+                    href="/buyer/dashboard"
+                    className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition"
+                  >
+                    <ArrowRight className="w-4 h-4 text-[#C5A059]" />
+                    <span>Buyer Procurement Desk</span>
+                  </Link>
+                </>
+              ) : role === UserRole.SELLER ? (
+                <>
+                  <button
+                    onClick={() => setIsAddStockModalOpen(true)}
+                    className="bg-[#C5A059] hover:bg-amber-400 text-[#0D3B2E] px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition shadow-lg hover:shadow-xl"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>{t.addStock}</span>
+                  </button>
+
+                  <Link
+                    href="/seller/dashboard"
+                    className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition"
+                  >
+                    <Building2 className="w-4 h-4 text-[#C5A059]" />
+                    <span>Miller Inventory Desk</span>
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  href="/admin"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black px-6 py-3 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 transition shadow-lg"
+                >
+                  <SlidersHorizontal className="w-4 h-4 text-[#0D3B2E]" />
+                  <span>Enter Super Admin Command Center</span>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -146,7 +209,7 @@ export default function HomePage() {
       </section>
 
       {/* Main Catalog & Search Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <section id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24">
         {/* Filter Bar */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -274,10 +337,22 @@ export default function HomePage() {
               Try adjusting your search parameters or submit a Purchase Requirement so our broker can source it directly.
             </p>
             <button
-              onClick={() => setIsRequirementModalOpen(true)}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  router.push('/login');
+                } else if (role === UserRole.BUYER) {
+                  setIsRequirementModalOpen(true);
+                } else {
+                  router.push('/seller/dashboard');
+                }
+              }}
               className="bg-[#0D3B2E] text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-[#166534] transition"
             >
-              Post Purchase Requirement
+              {!isAuthenticated
+                ? 'Sign In to Post Requirement'
+                : role === UserRole.BUYER
+                ? 'Post Purchase Requirement'
+                : 'Go to Miller Dashboard'}
             </button>
           </div>
         ) : (
@@ -286,7 +361,13 @@ export default function HomePage() {
               <RiceCard
                 key={listing.id}
                 listing={listing}
-                onEnquire={l => setSelectedListingForEnquiry(l)}
+                onEnquire={l => {
+                  if (!isAuthenticated) {
+                    router.push('/login');
+                  } else {
+                    setSelectedListingForEnquiry(l);
+                  }
+                }}
               />
             ))}
           </div>
@@ -294,7 +375,7 @@ export default function HomePage() {
       </section>
 
       {/* Trust & Brokerage Architecture Section */}
-      <section className="bg-[#FAF9F6] border-y border-slate-200 py-16">
+      <section id="assurance" className="bg-[#FAF9F6] border-y border-slate-200 py-16 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <span className="text-xs font-bold text-[#C5A059] uppercase tracking-wider">

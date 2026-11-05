@@ -9,16 +9,16 @@ import {
   Wheat,
   ShieldCheck,
   User,
-  Globe,
   LogOut,
   SlidersHorizontal,
-  ChevronDown,
-  Layers,
-  ArrowRight
+  FileSpreadsheet,
+  PackageCheck,
+  Building2,
+  LogIn
 } from 'lucide-react';
 
 export function Header() {
-  const { user, role, isAuthenticated, logout, language, setLanguage, t, quickLoginAs } = useAuth();
+  const { user, role, isAuthenticated, logout, language, setLanguage, t } = useAuth();
   const router = useRouter();
 
   const handleRoleNav = () => {
@@ -53,7 +53,7 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Center Navigation Links */}
+          {/* Center Navigation Links - Adaptive to Logged-in Role */}
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
             <Link
               href="/"
@@ -62,52 +62,82 @@ export function Header() {
               <span>{t.browseStock}</span>
             </Link>
 
-            {role === UserRole.BUYER && (
+            {/* Public Links when NOT authenticated */}
+            {!isAuthenticated && (
+              <>
+                <a
+                  href="#assurance"
+                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                >
+                  {language === 'hi' ? 'गोपनीयता आश्वासन' : 'Confidentiality Assurance'}
+                </a>
+                <a
+                  href="#specifications"
+                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                >
+                  {language === 'hi' ? 'गुणवत्ता मानक' : 'Quality Standards'}
+                </a>
+              </>
+            )}
+
+            {/* Buyer Specific Links (Only visible when logged in as Buyer) */}
+            {isAuthenticated && role === UserRole.BUYER && (
               <>
                 <Link
                   href="/buyer/dashboard?tab=requirements"
-                  className="text-white hover:text-[#C5A059] transition-colors"
+                  className="text-amber-200 hover:text-white transition-colors flex items-center space-x-1"
                 >
-                  {t.myRequirements}
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>{t.myRequirements}</span>
                 </Link>
                 <Link
                   href="/buyer/dashboard?tab=orders"
-                  className="text-white hover:text-[#C5A059] transition-colors"
+                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
                 >
                   {t.myOrders}
+                </Link>
+                <Link
+                  href="/buyer/dashboard?tab=enquiries"
+                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                >
+                  My Enquiries
                 </Link>
               </>
             )}
 
-            {role === UserRole.SELLER && (
+            {/* Seller Specific Links (Only visible when logged in as Seller) */}
+            {isAuthenticated && role === UserRole.SELLER && (
               <>
                 <Link
                   href="/seller/dashboard?tab=stock"
-                  className="text-white hover:text-[#C5A059] transition-colors"
+                  className="text-amber-200 hover:text-white transition-colors flex items-center space-x-1"
                 >
-                  {t.myStock}
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>{t.myStock}</span>
                 </Link>
                 <Link
                   href="/seller/dashboard?tab=orders"
-                  className="text-white hover:text-[#C5A059] transition-colors"
+                  className="text-gray-300 hover:text-[#C5A059] transition-colors flex items-center space-x-1"
                 >
-                  {t.myOrders}
+                  <PackageCheck className="w-3.5 h-3.5" />
+                  <span>{t.myOrders}</span>
                 </Link>
               </>
             )}
 
-            {role === UserRole.SUPER_ADMIN && (
+            {/* Admin Specific Links (Only visible when logged in as Super Admin) */}
+            {isAuthenticated && role === UserRole.SUPER_ADMIN && (
               <Link
                 href="/admin"
-                className="text-amber-300 font-semibold hover:text-white transition-colors flex items-center space-x-1.5 bg-[#166534]/50 px-3 py-1.5 rounded-lg border border-amber-400/30"
+                className="text-amber-300 font-bold hover:text-white transition-colors flex items-center space-x-1.5 bg-[#166534]/60 px-3.5 py-1.5 rounded-lg border border-amber-400/40 shadow-sm"
               >
                 <SlidersHorizontal className="w-4 h-4 text-[#C5A059]" />
-                <span>Super Admin Hub</span>
+                <span>Super Admin Desk</span>
               </Link>
             )}
           </nav>
 
-          {/* Right Action Tools: Language, Demo Selector, Auth */}
+          {/* Right Action Tools: Language, Auth */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             {/* Language Toggle (EN / HI) */}
             <div className="flex items-center bg-[#062018] rounded-lg p-1 border border-white/10">
@@ -133,42 +163,7 @@ export function Header() {
               </button>
             </div>
 
-            {/* Role Demo Switcher dropdown for instant reviewer access */}
-            <div className="hidden lg:flex items-center space-x-1 bg-white/10 px-2 py-1 rounded-lg border border-white/15 text-xs">
-              <span className="text-gray-300 font-mono text-[11px]">Role:</span>
-              <button
-                onClick={() => quickLoginAs('BUYER')}
-                className={`px-2 py-0.5 rounded transition ${
-                  role === UserRole.BUYER
-                    ? 'bg-emerald-500 text-white font-bold'
-                    : 'hover:bg-white/20 text-gray-200'
-                }`}
-              >
-                Buyer
-              </button>
-              <button
-                onClick={() => quickLoginAs('SELLER')}
-                className={`px-2 py-0.5 rounded transition ${
-                  role === UserRole.SELLER
-                    ? 'bg-emerald-500 text-white font-bold'
-                    : 'hover:bg-white/20 text-gray-200'
-                }`}
-              >
-                Seller
-              </button>
-              <button
-                onClick={() => quickLoginAs('ADMIN')}
-                className={`px-2 py-0.5 rounded transition ${
-                  role === UserRole.SUPER_ADMIN
-                    ? 'bg-amber-500 text-black font-bold'
-                    : 'hover:bg-white/20 text-amber-300'
-                }`}
-              >
-                Admin
-              </button>
-            </div>
-
-            {/* Auth Actions */}
+            {/* Auth Actions - Clean and Role-Driven */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-2">
                 <button
@@ -176,10 +171,12 @@ export function Header() {
                   className="flex items-center space-x-2 bg-[#C5A059] text-[#0D3B2E] px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-400 transition shadow-sm"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span className="truncate max-w-[120px]">
+                  <span className="truncate max-w-[130px]">
                     {role === UserRole.SUPER_ADMIN
-                      ? 'Admin Portal'
-                      : user?.profile?.companyName || user?.email?.split('@')[0]}
+                      ? 'Admin Command Center'
+                      : role === UserRole.BUYER
+                      ? `${user?.profile?.companyName || user?.email?.split('@')[0]} (Buyer)`
+                      : `${user?.profile?.millName || user?.profile?.companyName || user?.email?.split('@')[0]} (Miller)`}
                   </span>
                 </button>
                 <button
@@ -194,22 +191,16 @@ export function Header() {
               <div className="flex items-center space-x-2">
                 <Link
                   href="/login"
-                  className="text-white hover:text-[#C5A059] text-xs font-semibold px-3 py-1.5 transition"
+                  className="text-white hover:text-[#C5A059] text-xs font-semibold px-3 py-1.5 transition flex items-center space-x-1"
                 >
-                  {t.login}
+                  <LogIn className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <span>{t.login}</span>
                 </Link>
                 <Link
                   href="/register"
                   className="bg-[#C5A059] text-[#0D3B2E] px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-400 transition shadow-sm"
                 >
                   {t.register}
-                </Link>
-                <Link
-                  href="/admin/login"
-                  className="bg-[#166534] text-amber-200 border border-[#C5A059]/40 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#062018] transition flex items-center space-x-1"
-                >
-                  <ShieldCheck className="w-3 h-3 text-[#C5A059]" />
-                  <span>Admin</span>
                 </Link>
               </div>
             )}

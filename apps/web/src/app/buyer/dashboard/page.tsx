@@ -89,6 +89,19 @@ function BuyerDashboardContent() {
     }
   };
 
+  if (isLoading || !isAuthenticated || role !== UserRole.BUYER) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-3">
+          <Wheat className="w-10 h-10 text-[#0D3B2E] animate-spin" />
+          <p className="text-xs font-semibold text-slate-600">
+            Verifying Buyer Procurement Authorization...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Buyer Welcome Banner */}

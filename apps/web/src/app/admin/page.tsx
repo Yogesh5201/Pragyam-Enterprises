@@ -25,7 +25,8 @@ import {
   FileCheck2,
   Lock,
   ChevronRight,
-  History
+  History,
+  ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/apiClient';
@@ -258,6 +259,19 @@ export default function SuperAdminDashboard() {
       setActionError(e.message);
     }
   };
+
+  if (isLoading || !isAuthenticated || role !== UserRole.SUPER_ADMIN) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="flex flex-col items-center space-y-4">
+          <ShieldAlert className="w-12 h-12 text-[#C5A059]" />
+          <span className="text-sm font-semibold text-slate-300">
+            Access Restricted: Super Administrator Authentication & MFA Required
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (loading && !metrics) {
     return (

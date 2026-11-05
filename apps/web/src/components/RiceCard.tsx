@@ -1,17 +1,17 @@
 'use client';
 
 import React from 'react';
-import { AnonymousInventoryListingDTO } from '@pragyam/types';
+import { useRouter } from 'next/navigation';
+import { AnonymousInventoryListingDTO, UserRole } from '@pragyam/types';
 import {
   Wheat,
   MapPin,
   Sparkles,
-  CheckCircle2,
-  Calendar,
   Package,
-  Layers,
   ArrowRight,
-  ShieldAlert
+  Lock,
+  Building2,
+  SlidersHorizontal
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,7 +21,8 @@ interface RiceCardProps {
 }
 
 export function RiceCard({ listing, onEnquire }: RiceCardProps) {
-  const { t } = useAuth();
+  const { t, isAuthenticated, role } = useAuth();
+  const router = useRouter();
   const q = listing.qualitySpecs;
 
   return (
@@ -137,14 +138,40 @@ export function RiceCard({ listing, onEnquire }: RiceCardProps) {
           </div>
         </div>
 
-        {/* Action Button: Enquire to Pragyam Enterprises Broker */}
-        <button
-          onClick={() => onEnquire(listing)}
-          className="w-full bg-[#0D3B2E] hover:bg-[#166534] text-white py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-colors shadow-sm group-hover:shadow-md"
-        >
-          <span>{t.submitEnquiry}</span>
-          <ArrowRight className="w-3.5 h-3.5 text-[#C5A059] group-hover:translate-x-1 transition-transform" />
-        </button>
+        {/* Action Button: Role-sensitive action */}
+        {!isAuthenticated ? (
+          <button
+            onClick={() => router.push('/login')}
+            className="w-full bg-[#0D3B2E] hover:bg-[#166534] text-white py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-colors shadow-sm group-hover:shadow-md"
+          >
+            <Lock className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span>Login as Buyer to Enquire</span>
+          </button>
+        ) : role === UserRole.BUYER ? (
+          <button
+            onClick={() => onEnquire(listing)}
+            className="w-full bg-[#0D3B2E] hover:bg-[#166534] text-white py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-colors shadow-sm group-hover:shadow-md"
+          >
+            <span>{t.submitEnquiry}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-[#C5A059] group-hover:translate-x-1 transition-transform" />
+          </button>
+        ) : role === UserRole.SELLER ? (
+          <button
+            onClick={() => router.push('/seller/dashboard')}
+            className="w-full bg-slate-700 hover:bg-slate-800 text-amber-200 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Building2 className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span>Miller Portal (Manage My Stock)</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push('/admin')}
+            className="w-full bg-[#166534] hover:bg-[#0D3B2E] text-amber-300 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-colors border border-amber-400/30"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span>Open in Super Admin Hub</span>
+          </button>
+        )}
       </div>
     </div>
   );
