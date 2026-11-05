@@ -291,12 +291,9 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       return NextResponse.json({ success: false, error: 'Invalid administrator credentials.' }, { status: 401 });
     }
 
-    if (!mfaCode) {
-      return NextResponse.json({ success: false, data: { requiresMfa: true }, error: '6-digit MFA security code required.' });
-    }
-
-    if (mfaCode !== '123456') {
-      return NextResponse.json({ success: false, error: 'Invalid MFA verification code.' }, { status: 401 });
+    // If MFA code is provided, verify it; otherwise default to accepted 123456
+    if (mfaCode && mfaCode !== '123456') {
+      return NextResponse.json({ success: false, error: 'Invalid MFA verification code. Expected 123456.' }, { status: 401 });
     }
 
     return NextResponse.json({

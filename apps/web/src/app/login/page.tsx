@@ -24,20 +24,23 @@ export default function LoginPage() {
     try {
       const res = await apiRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
 
-      if (res.success && res.data?.token) {
-        login(res.data.token, res.data.user);
-        if (res.data.user.role === UserRole.BUYER) {
+      const token = res.data?.token || res.data?.data?.token;
+      const user = res.data?.user || res.data?.data?.user;
+
+      if (token && user) {
+        login(token, user);
+        if (user.role === UserRole.BUYER) {
           router.push('/buyer/dashboard');
-        } else if (res.data.user.role === UserRole.SELLER) {
+        } else if (user.role === UserRole.SELLER) {
           router.push('/seller/dashboard');
         } else {
           router.push('/admin');
         }
       } else {
-        setError(res.error || 'Authentication failed');
+        setError(res.data?.error || res.error || 'Authentication failed. Please verify credentials.');
       }
     } catch (err: any) {
       setError(err.message || 'Network error');
