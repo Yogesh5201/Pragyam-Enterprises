@@ -59,10 +59,10 @@ function BuyerDashboardContent() {
         apiRequest('/payments/my-payments'),
       ]);
 
-      if (enqRes.success && enqRes.data) setEnquiries(enqRes.data.enquiries);
-      if (reqRes.success && reqRes.data) setRequirements(reqRes.data.requirements);
-      if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders);
-      if (payRes.success && payRes.data) setPayments(payRes.data.payments);
+      if (enqRes.success && enqRes.data) setEnquiries(enqRes.data.enquiries || []);
+      if (reqRes.success && reqRes.data) setRequirements(reqRes.data.requirements || []);
+      if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders || []);
+      if (payRes.success && payRes.data) setPayments(payRes.data.payments || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -167,7 +167,7 @@ function BuyerDashboardContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              {enquiries.map(e => (
+              {(enquiries || []).map(e => (
                 <div key={e.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
                   <div>
                     <div className="flex items-center space-x-2">
@@ -212,7 +212,7 @@ function BuyerDashboardContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              {requirements.map(r => (
+              {(requirements || []).map(r => (
                 <div key={r.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
@@ -247,7 +247,7 @@ function BuyerDashboardContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              {orders.map(po => (
+              {(orders || []).map(po => (
                 <div key={po.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
                     <div>
@@ -343,7 +343,7 @@ function BuyerDashboardContent() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {payments.map(pay => (
+                {(payments || []).map(pay => (
                   <tr key={pay.id}>
                     <td className="p-3 font-mono">{pay.referenceNumber}</td>
                     <td className="p-3 font-bold text-[#0D3B2E]">{pay.poNumber}</td>

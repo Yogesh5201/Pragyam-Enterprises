@@ -84,6 +84,9 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
       const seller = db.sellerProfiles.find(s => s.id === l.sellerId);
       return {
         ...l,
+        sellerCompanyName: seller?.companyName || seller?.millName || 'Taraori Golden Rice Mills Ltd',
+        sellerFullName: seller?.fullName || 'Rameshwar Lal Singhal',
+        sellerPhone: seller?.phone || '+91 98960 11223',
         sellerActualInfo: {
           sellerId: seller?.id,
           sellerName: seller?.fullName,
@@ -134,10 +137,24 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
         listingId: matched.id,
         anonymousListingCode: matched.anonymousCode,
         sellerMillName: 'Taraori Golden Rice Mills Ltd',
+        sellerCompanyName: 'Taraori Golden Rice Mills Ltd',
         sellerAskingPrice: matched.askingPricePerQuintal,
         sellerAvailableMT: matched.availableQuantityMT,
-        compatibilityScore: 94.5,
-        priceGapPerQuintal: matched.askingPricePerQuintal - req.targetPricePerQuintal,
+        category: req.category,
+        overallMatchScore: 94,
+        qualityScore: 96,
+        priceScore: 92,
+        quantityScore: 95,
+        locationScore: 90,
+        recommendationSummary: 'High probability deal: Specs closely aligned. Taraori Mill has 500 MT ready stock with required length (8.35mm).',
+        differences: {
+          grainLengthDiff: 0.05,
+          priceDiffPerQuintal: 100,
+          quantityDiffMT: 0,
+          moistureDiff: 0.2,
+          brokenDiff: 0.5,
+          whitenessDiff: 2.0
+        },
         reasons: ['Grain length matches: 8.35mm', 'Sortex certified 100%', 'Ready stock at Karnal Depot']
       };
     });
@@ -154,14 +171,25 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
         buyerCompanyName: 'Royal Feast Global Exporters',
         sellerId: 'sel-prof-001',
         sellerMillName: 'Taraori Golden Rice Mills',
+        sellerCompanyName: 'Taraori Golden Rice Mills',
         anonymousListingCode: 'PRG-1025',
         variety: '1121 Golden Sella Basmati',
         requestedQuantityMT: 100,
+        agreedQuantityMT: 100,
         buyerTargetPrice: 8100,
         sellerAskingPrice: 8200,
+        sellerInitialPrice: 8200,
         adminNegotiatedPrice: 8150,
+        finalAgreedPrice: 8150,
         brokeragePerMT: 100,
-        status: 'IN_NEGOTIATION',
+        brokeragePerUnit: 100,
+        brokeragePayee: 'BUYER_AND_SELLER_SPLIT',
+        status: 'AGREED',
+        history: [
+          { actor: 'BUYER', note: 'Offered ₹8,100/Qtl for 100 MT' },
+          { actor: 'SELLER', note: 'Quoted ₹8,200/Qtl ex-mill' },
+          { actor: 'ADMIN', note: 'Broker counter-offer settled at ₹8,150/Qtl mutually accepted' }
+        ],
         updatedAt: new Date().toISOString()
       }
     ];
@@ -174,7 +202,13 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
     path === 'purchase-orders/buyer/my-orders' ||
     path === 'purchase-orders/seller/my-orders'
   ) {
-    return NextResponse.json({ success: true, purchaseOrders: db.purchaseOrders });
+    const purchaseOrders = db.purchaseOrders.map(po => ({
+      ...po,
+      orderDate: (po as any).orderDate || po.createdAt,
+      brokerageAmount: (po as any).brokerageAmount || (po as any).totalBrokerageAmount || 74000,
+      dispatchLocation: (po as any).dispatchLocation || 'Taraori Mill Depot, Karnal'
+    }));
+    return NextResponse.json({ success: true, purchaseOrders });
   }
 
   // 10. Purchase Order PDF Download
@@ -220,36 +254,72 @@ startxref
 
   // 12. Payments
   if (path === 'payments/admin/all' || path === 'payments/my-payments') {
-    return NextResponse.json({ success: true, payments: db.payments });
+    const payments = db.payments.map(p => ({
+      ...p,
+      poNumber: (p as any).poNumber || 'PO-2026-9042',
+      payerName: (p as any).payerName || 'Royal Feast Global Exporters',
+      method: (p as any).method || p.paymentMethod || 'RTGS Transfer',
+      referenceNumber: (p as any).referenceNumber || (p as any).paymentReference || 'RTGS-2026-881920'
+    }));
+    return NextResponse.json({ success: true, payments });
   }
 
   // 13. Invoices
   if (path === 'invoices/admin/all') {
-    return NextResponse.json({ success: true, invoices: db.invoices });
+    const invoices = db.invoices.map(inv => ({
+      ...inv,
+      invoiceDate: (inv as any).invoiceDate || (inv as any).issueDate,
+      clientName: (inv as any).clientName || (inv as any).billedToName || 'Royal Feast Global Exporters Pvt Ltd',
+      poNumber: (inv as any).poNumber || 'PO-2026-9042',
+      taxableAmount: (inv as any).taxableAmount || (inv as any).brokerageAmount || 37000,
+      totalTax: (inv as any).totalTax || (inv as any).totalTaxAmount || 6660
+    }));
+    return NextResponse.json({ success: true, invoices });
   }
 
   // 14. Analytics Summary
   if (path === 'analytics/admin/summary') {
+    const totalStock = db.listings.reduce((sum, l) => sum + (l.availableQuantityMT || 0), 0);
     return NextResponse.json({
       success: true,
       metrics: {
-        totalBrokerageRevenueINR: 3560000,
-        totalTradedVolumeMT: 4820,
-        activeListingsCount: db.listings.length,
-        pendingEnquiriesCount: db.enquiries.length,
-        activeNegotiationsCount: 1,
-        confirmedOrdersCount: db.purchaseOrders.length,
-        totalRegisteredMills: db.sellerProfiles.length + 38,
-        totalRegisteredBuyers: db.buyerProfiles.length + 64,
-        inTransitDeliveriesCount: db.transportRecords.length,
-        recentBrokerageCollectedINR: 74000
+        totalTransactionValue: 35600000,
+        totalSalesMT: 480,
+        totalPurchaseOrders: db.purchaseOrders.length,
+        completedOrders: 1,
+        pendingOrders: 0,
+        cancelledOrders: 0,
+        activeBuyers: db.buyerProfiles.length,
+        activeSellers: db.sellerProfiles.length,
+        totalStockAvailableMT: totalStock || 1650,
+        totalBrokerageEarned: 356000,
+        outstandingPayments: 5920000,
+        receivedPayments: 1480000,
+        pendingDispatches: db.transportRecords.length,
+        monthlySalesTrend: [
+          { month: 'Oct 2025', amount: 8200000, volumeMT: 100 },
+          { month: 'Nov 2025', amount: 11500000, volumeMT: 150 },
+          { month: 'Dec 2025', amount: 16800000, volumeMT: 220 },
+          { month: 'Jan 2026', amount: 24200000, volumeMT: 310 },
+          { month: 'Feb 2026', amount: 35600000, volumeMT: 480 }
+        ],
+        categoryDistribution: [
+          { category: 'Golden Sella Basmati', count: 12, volumeMT: 1500 },
+          { category: 'Steam Rice', count: 18, volumeMT: 2200 },
+          { category: 'Raw Rice (Sona Masoori)', count: 8, volumeMT: 800 },
+          { category: 'Brown & Traditional', count: 4, volumeMT: 320 }
+        ]
       }
     });
   }
 
   // 15. Audit Logs
   if (path === 'audit/admin/logs') {
-    return NextResponse.json({ success: true, auditLogs: db.auditLogs });
+    return NextResponse.json({
+      success: true,
+      logs: db.auditLogs,
+      auditLogs: db.auditLogs
+    });
   }
 
   // 16. Users (Admin directory)

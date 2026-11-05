@@ -56,9 +56,9 @@ function SellerDashboardContent() {
         apiRequest('/payments/my-payments'),
       ]);
 
-      if (listRes.success && listRes.data) setMyListings(listRes.data.listings);
-      if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders);
-      if (payRes.success && payRes.data) setPayments(payRes.data.payments);
+      if (listRes.success && listRes.data) setMyListings(listRes.data.listings || []);
+      if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders || []);
+      if (payRes.success && payRes.data) setPayments(payRes.data.payments || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -161,7 +161,7 @@ function SellerDashboardContent() {
           </div>
 
           <div className="space-y-3">
-            {myListings.map(l => (
+            {(myListings || []).map(l => (
               <div key={l.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
@@ -205,7 +205,7 @@ function SellerDashboardContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              {orders.map(po => (
+              {(orders || []).map(po => (
                 <div key={po.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
                     <div>
@@ -294,7 +294,7 @@ function SellerDashboardContent() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {payments.map(pay => (
+                {(payments || []).map(pay => (
                   <tr key={pay.id}>
                     <td className="p-3 font-mono">{pay.referenceNumber}</td>
                     <td className="p-3 font-bold text-[#0D3B2E]">{pay.poNumber}</td>

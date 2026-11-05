@@ -408,20 +408,26 @@ class ServerlessDataStore {
     this.purchaseOrders.push({
       id: 'po-401',
       poNumber: 'PO-2026-9042',
+      orderDate: '2026-02-20T10:00:00.000Z',
       enquiryId: 'enq-301',
       listingId: 'lst-1026',
       buyerId: buyer1Profile.id,
+      buyerCompanyName: buyer1Profile.companyName,
       sellerId: seller2Profile.id,
+      sellerCompanyName: seller2Profile.millName,
       intermediaryBroker: 'Pragyam Enterprises (Karnal Central Desk)',
       riceCategory: RiceCategory.STEAM_RICE,
       riceVariety: '1509 Steam Basmati Extra Long Grain',
+      classification: RiceClassification.BASMATI,
       quantityMT: 100,
       quantityQuintals: 1000,
       agreedRatePerQuintal: 7400,
       agreedRatePerMT: 74000,
       totalGoodsValue: 7400000,
+      brokerageAmount: 74000,
       brokeragePerMT: 740,
       totalBrokerageAmount: 74000,
+      brokerageType: BrokerageType.PER_METRIC_TONNE,
       brokeragePayee: BrokeragePayee.BOTH_SPLIT,
       paymentTerms: '20% Advance on PO confirmation, 80% on Dispatch Bilty issuance.',
       qualitySpecs: {
@@ -429,20 +435,26 @@ class ServerlessDataStore {
         whiteness: 42.0,
         moisturePercent: 12.2,
         brokenPercent: 1.5,
-        sortex: true
-      },
+        sortex: true,
+        cropYear: '2025-2026'
+      } as any,
+      packaging: PackagingType.PP_BAG_50KG,
+      dispatchLocation: 'Taraori Mill Depot, Karnal',
       deliveryLocation: 'Kandla CFS Yard, Gujarat',
+      deliveryDate: '2026-03-05',
       expectedDispatchDate: '2026-02-28',
       deliveryDeadline: '2026-03-05',
       status: PurchaseOrderStatus.IN_TRANSIT,
       createdAt: '2026-02-20T10:00:00.000Z',
       updatedAt: '2026-02-25T16:00:00.000Z'
-    });
+    } as any);
 
     // 8. Transport Record
     this.transportRecords.push({
       id: 'trp-501',
       purchaseOrderId: 'po-401',
+      poId: 'po-401',
+      poNumber: 'PO-2026-9042',
       transporterName: 'Om Logistics Inter-State Carriers',
       driverName: 'Gurmeet Singh',
       driverPhone: '+91 98120 54321',
@@ -450,51 +462,91 @@ class ServerlessDataStore {
       biltyNumber: 'LR-2026-8819',
       ewayBillNumber: 'EWB-77192019',
       loadedQuantityMT: 50,
+      quantityLoadedMT: 50,
+      bagCount: 1000,
+      loadingLocation: 'Taraori Mill Depot, Karnal',
+      deliveryLocation: 'Kandla CFS Yard, Gujarat',
+      loadingDate: '2026-02-25T12:00:00.000Z',
       dispatchDate: '2026-02-25T14:30:00.000Z',
+      expectedDeliveryDate: '2026-03-01T18:00:00.000Z',
       estimatedArrival: '2026-03-01T18:00:00.000Z',
       deliveryCFSLocation: 'Kandla CFS Yard, Gujarat',
       freightCharges: 38000,
+      freightStatus: 'PAID_BY_BUYER',
       status: TransportStatus.IN_TRANSIT,
+      statusLogs: [
+        {
+          status: TransportStatus.DISPATCHED,
+          timestamp: '2026-02-25T14:30:00.000Z',
+          locationNote: 'Vehicle departed from Taraori Mill Depot'
+        },
+        {
+          status: TransportStatus.IN_TRANSIT,
+          timestamp: '2026-02-26T10:00:00.000Z',
+          locationNote: 'Passing Jaipur-Ajmer Expressway'
+        }
+      ],
       createdAt: '2026-02-25T15:00:00.000Z',
       updatedAt: '2026-02-25T15:00:00.000Z'
-    });
+    } as any);
 
     // 9. Payment Record
     this.payments.push({
       id: 'pay-601',
       purchaseOrderId: 'po-401',
-      paymentReference: 'PAY-REF-2026-1029',
-      payerRole: UserRole.BUYER,
+      poId: 'po-401',
+      poNumber: 'PO-2026-9042',
+      payerName: 'Royal Feast Global Exporters Pvt Ltd',
+      payerId: buyer1Profile.id,
+      payerRole: 'BUYER',
       amount: 1480000,
-      paymentType: PaymentType.ADVANCE,
+      paymentType: PaymentType.BROKERAGE_PAYMENT,
       paymentMethod: PaymentMethod.RTGS,
-      status: PaymentStatus.ESCROW_HELD,
+      method: 'RTGS Transfer',
+      referenceNumber: 'RTGS-2026-881920',
+      paymentReference: 'RTGS-2026-881920',
+      paymentDate: '2026-02-21T11:00:00.000Z',
+      status: PaymentStatus.VERIFIED,
       transactionDate: '2026-02-21T11:00:00.000Z',
       verifiedByAdmin: true,
-      notes: 'Advance 20% held in Pragyam Brokerage Escrow Account pending mill loading verification.'
-    });
+      notes: 'Advance 20% verified in Pragyam Brokerage Escrow Account.'
+    } as any);
 
     // 10. Brokerage Invoice
     this.invoices.push({
       id: 'inv-701',
       invoiceNumber: 'PRG/INV/2026/042',
+      invoiceType: 'BROKERAGE_INVOICE',
       purchaseOrderId: 'po-401',
+      poId: 'po-401',
+      poNumber: 'PO-2026-9042',
+      issuerName: 'Pragyam Enterprises',
+      issuerGstin: '06AAACT4455R1Z2',
       billedToRole: UserRole.BUYER,
       billedToName: buyer1Profile.companyName,
+      clientName: buyer1Profile.companyName,
+      clientGstin: buyer1Profile.gstin,
       sacCode: '998319',
+      hsnSacCode: '998319',
       brokerageAmount: 37000,
+      taxableAmount: 37000,
+      cgstPercent: 9.0,
       cgstRate: 9.0,
       cgstAmount: 3330,
+      sgstPercent: 9.0,
       sgstRate: 9.0,
       sgstAmount: 3330,
+      igstPercent: 0,
       igstRate: 0,
       igstAmount: 0,
       totalTaxAmount: 6660,
+      totalTax: 6660,
       grandTotal: 43660,
       status: 'GENERATED' as any,
       issueDate: '2026-02-20T12:00:00.000Z',
+      invoiceDate: '2026-02-20T12:00:00.000Z',
       dueDate: '2026-03-05T00:00:00.000Z'
-    });
+    } as any);
 
     // 11. Audit Log
     this.auditLogs.push({
