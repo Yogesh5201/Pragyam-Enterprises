@@ -8,7 +8,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@pragyam/types && npm run build --workspace=@pragyam/shared && npm run build --workspace=@pragyam/web",
+    "build:all": "npm run build --workspace=@pragyam/types && npm run build --workspace=@pragyam/shared && npm run build --workspace=@pragyam/api && npm run build --workspace=@pragyam/web",
+    "build:web": "npm run build --workspace=@pragyam/types && npm run build --workspace=@pragyam/shared && npm run build --workspace=@pragyam/web",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "dev:api": "npm run dev --workspace=apps/api",
