@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '@pragyam/types';
 import {
@@ -14,68 +14,131 @@ import {
   FileSpreadsheet,
   PackageCheck,
   Building2,
-  LogIn
+  LogIn,
+  Menu,
+  X,
+  Smartphone,
+  ChevronDown,
+  Layers,
+  Sparkles,
+  ClipboardList,
+  Truck
 } from 'lucide-react';
 
 export function Header() {
   const { user, role, isAuthenticated, logout, language, setLanguage, t } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
+  }, [pathname]);
 
   const handleRoleNav = () => {
+    setUserDropdownOpen(false);
     if (role === UserRole.SUPER_ADMIN) router.push('/admin');
     else if (role === UserRole.SELLER) router.push('/seller/dashboard');
     else if (role === UserRole.BUYER) router.push('/buyer/dashboard');
     else router.push('/login');
   };
 
+  const getRoleDisplayName = () => {
+    if (role === UserRole.SUPER_ADMIN) return 'Super Admin';
+    if (role === UserRole.BUYER) return 'Authorized Buyer';
+    if (role === UserRole.SELLER) return 'Rice Miller';
+    return 'Trade Client';
+  };
+
+  const getUserLabel = () => {
+    if (role === UserRole.SUPER_ADMIN) return 'Broker Command';
+    if (role === UserRole.BUYER) return user?.profile?.companyName || user?.profile?.fullName || 'Buyer Desk';
+    if (role === UserRole.SELLER) return user?.profile?.millName || user?.profile?.companyName || 'Miller Desk';
+    return user?.email?.split('@')[0] || 'My Account';
+  };
+
   return (
-    <header className="sticky top-0 z-50 bg-[#0D3B2E] text-white shadow-md border-b border-[#C5A059]/30">
-      {/* Top Banner Notice */}
-      <div className="bg-[#062018] px-4 py-1 text-center text-xs text-amber-200/90 flex items-center justify-center space-x-2 font-medium">
-        <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
-        <span>{t.confidentialityNotice}</span>
+    <header className="sticky top-0 z-50 bg-[#0D3B2E] text-white shadow-xl border-b border-[#C5A059]/30">
+      {/* Top Banner Notice - Institutional Confidentiality Rule */}
+      <div className="bg-[#062018] px-4 py-1.5 text-center text-[11px] sm:text-xs text-amber-200/90 border-b border-white/5 flex items-center justify-center space-x-2 font-medium">
+        <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059] flex-shrink-0" />
+        <span className="truncate">{t.confidentialityNotice}</span>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-18 sm:h-20">
           {/* Logo & Brand Identity */}
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#C5A059] to-[#92400E] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <Wheat className="w-7 h-7 text-white" />
+          <Link href="/" className="flex items-center space-x-2.5 sm:space-x-3 group flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#C5A059] via-amber-500 to-[#92400E] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
+              <Wheat className="w-6 h-6 sm:w-7 sm:h-7 text-[#0D3B2E]" />
             </div>
-            <div>
-              <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-white block">
+            <div className="flex flex-col">
+              <span className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-white whitespace-nowrap leading-tight">
                 PRAGYAM <span className="text-[#C5A059]">ENTERPRISES</span>
               </span>
-              <span className="text-[10px] sm:text-xs text-amber-100/80 font-medium tracking-wider uppercase block">
+              <span className="text-[9px] sm:text-[10px] md:text-xs text-amber-100/80 font-medium tracking-wider uppercase hidden sm:block whitespace-nowrap">
                 {language === 'hi' ? 'चावल ब्रोकरेज एवं व्यापार प्रबंधन' : 'Rice Brokerage & Trading Management'}
               </span>
             </div>
           </Link>
 
-          {/* Center Navigation Links - Adaptive to Logged-in Role */}
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+          {/* Desktop Navigation Links (Properly Spaced & No Word Wrapping) */}
+          <nav className="hidden lg:flex items-center space-x-5 text-xs xl:text-sm font-semibold">
             <Link
               href="/"
-              className="text-white hover:text-[#C5A059] transition-colors flex items-center space-x-1"
+              className={`whitespace-nowrap transition-colors flex items-center space-x-1.5 py-1 px-2.5 rounded-lg ${
+                pathname === '/' ? 'text-amber-300 bg-white/10' : 'text-gray-200 hover:text-[#C5A059]'
+              }`}
             >
               <span>{t.browseStock}</span>
+            </Link>
+
+            {/* Mobile App Highlight Pill */}
+            <Link
+              href="/app"
+              className={`whitespace-nowrap transition-all flex items-center space-x-1.5 py-1 px-3 rounded-full border text-xs font-bold ${
+                pathname === '/app'
+                  ? 'bg-[#C5A059] text-[#0D3B2E] border-[#C5A059]'
+                  : 'bg-emerald-950/80 text-amber-300 border-[#C5A059]/40 hover:bg-[#C5A059]/20'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5 text-[#C5A059]" />
+              <span>Mobile App</span>
+              <span className="text-[10px] bg-amber-400 text-[#0D3B2E] px-1.5 py-0.2 rounded font-black">
+                Android/iOS
+              </span>
             </Link>
 
             {/* Public Links when NOT authenticated */}
             {!isAuthenticated && (
               <>
                 <a
-                  href="#assurance"
-                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                  href="/#assurance"
+                  className="whitespace-nowrap text-gray-300 hover:text-[#C5A059] transition-colors py-1 px-2"
                 >
-                  {language === 'hi' ? 'गोपनीयता आश्वासन' : 'Confidentiality Assurance'}
+                  {language === 'hi' ? 'गोपनीयता' : 'Assurance'}
                 </a>
                 <a
-                  href="#specifications"
-                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                  href="/#specifications"
+                  className="whitespace-nowrap text-gray-300 hover:text-[#C5A059] transition-colors py-1 px-2"
                 >
-                  {language === 'hi' ? 'गुणवत्ता मानक' : 'Quality Standards'}
+                  {language === 'hi' ? 'गुणवत्ता मानक' : 'Standards'}
                 </a>
               </>
             )}
@@ -85,20 +148,22 @@ export function Header() {
               <>
                 <Link
                   href="/buyer/dashboard?tab=requirements"
-                  className="text-amber-200 hover:text-white transition-colors flex items-center space-x-1"
+                  className={`whitespace-nowrap transition-colors flex items-center space-x-1.5 py-1 px-2.5 rounded-lg ${
+                    pathname === '/buyer/dashboard' ? 'text-amber-300 bg-white/10' : 'text-gray-200 hover:text-[#C5A059]'
+                  }`}
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#C5A059]" />
                   <span>{t.myRequirements}</span>
                 </Link>
                 <Link
                   href="/buyer/dashboard?tab=orders"
-                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                  className="whitespace-nowrap text-gray-200 hover:text-[#C5A059] transition-colors py-1 px-2.5"
                 >
                   {t.myOrders}
                 </Link>
                 <Link
                   href="/buyer/dashboard?tab=enquiries"
-                  className="text-gray-300 hover:text-[#C5A059] transition-colors"
+                  className="whitespace-nowrap text-gray-200 hover:text-[#C5A059] transition-colors py-1 px-2.5"
                 >
                   My Enquiries
                 </Link>
@@ -110,14 +175,16 @@ export function Header() {
               <>
                 <Link
                   href="/seller/dashboard?tab=stock"
-                  className="text-amber-200 hover:text-white transition-colors flex items-center space-x-1"
+                  className={`whitespace-nowrap transition-colors flex items-center space-x-1.5 py-1 px-2.5 rounded-lg ${
+                    pathname === '/seller/dashboard' ? 'text-amber-300 bg-white/10' : 'text-gray-200 hover:text-[#C5A059]'
+                  }`}
                 >
-                  <Building2 className="w-3.5 h-3.5" />
+                  <Building2 className="w-3.5 h-3.5 text-[#C5A059]" />
                   <span>{t.myStock}</span>
                 </Link>
                 <Link
                   href="/seller/dashboard?tab=orders"
-                  className="text-gray-300 hover:text-[#C5A059] transition-colors flex items-center space-x-1"
+                  className="whitespace-nowrap text-gray-200 hover:text-[#C5A059] transition-colors py-1 px-2.5 flex items-center space-x-1.5"
                 >
                   <PackageCheck className="w-3.5 h-3.5" />
                   <span>{t.myOrders}</span>
@@ -129,23 +196,23 @@ export function Header() {
             {isAuthenticated && role === UserRole.SUPER_ADMIN && (
               <Link
                 href="/admin"
-                className="text-amber-300 font-bold hover:text-white transition-colors flex items-center space-x-1.5 bg-[#166534]/60 px-3.5 py-1.5 rounded-lg border border-amber-400/40 shadow-sm"
+                className="whitespace-nowrap text-amber-300 font-bold hover:text-white transition-colors flex items-center space-x-1.5 bg-[#166534] px-3 py-1.5 rounded-lg border border-amber-400/50 shadow-md"
               >
-                <SlidersHorizontal className="w-4 h-4 text-[#C5A059]" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#C5A059]" />
                 <span>Super Admin Desk</span>
               </Link>
             )}
           </nav>
 
-          {/* Right Action Tools: Language, Auth */}
-          <div className="flex items-center space-x-3 sm:space-x-4">
+          {/* Right Action Tools: Language, Profile Dropdown, Hamburger */}
+          <div className="flex items-center space-x-2.5 sm:space-x-3">
             {/* Language Toggle (EN / HI) */}
-            <div className="flex items-center bg-[#062018] rounded-lg p-1 border border-white/10">
+            <div className="flex items-center bg-[#062018] rounded-xl p-0.5 border border-white/15">
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                className={`px-2 py-1 text-[11px] font-bold rounded-lg transition ${
                   language === 'en'
-                    ? 'bg-[#C5A059] text-[#0D3B2E]'
+                    ? 'bg-[#C5A059] text-[#0D3B2E] shadow-sm'
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
@@ -153,9 +220,9 @@ export function Header() {
               </button>
               <button
                 onClick={() => setLanguage('hi')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                className={`px-2 py-1 text-[11px] font-bold rounded-lg transition ${
                   language === 'hi'
-                    ? 'bg-[#C5A059] text-[#0D3B2E]'
+                    ? 'bg-[#C5A059] text-[#0D3B2E] shadow-sm'
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
@@ -163,50 +230,290 @@ export function Header() {
               </button>
             </div>
 
-            {/* Auth Actions - Clean and Role-Driven */}
+            {/* Auth Actions - Desktop */}
             {isAuthenticated ? (
-              <div className="flex items-center space-x-2">
+              <div className="relative" ref={dropdownRef}>
                 <button
-                  onClick={handleRoleNav}
-                  className="flex items-center space-x-2 bg-[#C5A059] text-[#0D3B2E] px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-400 transition shadow-sm"
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center space-x-2 bg-[#C5A059] text-[#0D3B2E] px-3 py-1.5 sm:py-2 rounded-xl text-xs font-extrabold hover:bg-amber-400 transition shadow-md"
                 >
-                  <User className="w-3.5 h-3.5" />
-                  <span className="truncate max-w-[130px]">
-                    {role === UserRole.SUPER_ADMIN
-                      ? 'Admin Command Center'
-                      : role === UserRole.BUYER
-                      ? `${user?.profile?.companyName || user?.email?.split('@')[0]} (Buyer)`
-                      : `${user?.profile?.millName || user?.profile?.companyName || user?.email?.split('@')[0]} (Miller)`}
+                  <div className="w-5 h-5 rounded-full bg-[#0D3B2E] text-[#C5A059] flex items-center justify-center font-black text-[10px]">
+                    {getUserLabel().charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden sm:inline max-w-[140px] truncate">
+                    {getUserLabel()}
                   </span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-                <button
-                  onClick={logout}
-                  title="Logout"
-                  className="p-1.5 rounded-lg bg-red-950/60 text-red-300 hover:bg-red-800 hover:text-white transition"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
+
+                {/* Dropdown Menu */}
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[10px] font-black tracking-wider uppercase text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 inline-block mb-1">
+                        {getRoleDisplayName()}
+                      </span>
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {getUserLabel()}
+                      </p>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+
+                    <div className="py-1">
+                      <button
+                        onClick={handleRoleNav}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-slate-50 flex items-center space-x-2 text-slate-700"
+                      >
+                        <User className="w-4 h-4 text-[#0D3B2E]" />
+                        <span>Go to {getRoleDisplayName()} Desk</span>
+                      </button>
+
+                      <Link
+                        href="/app"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-slate-50 flex items-center space-x-2 text-slate-700"
+                      >
+                        <Smartphone className="w-4 h-4 text-[#C5A059]" />
+                        <span>Open Mobile App Simulator</span>
+                      </Link>
+                    </div>
+
+                    <div className="pt-1 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          logout();
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
+              <div className="hidden sm:flex items-center space-x-2">
                 <Link
                   href="/login"
-                  className="text-white hover:text-[#C5A059] text-xs font-semibold px-3 py-1.5 transition flex items-center space-x-1"
+                  className="text-white hover:text-[#C5A059] text-xs font-bold px-3 py-1.5 transition flex items-center space-x-1"
                 >
                   <LogIn className="w-3.5 h-3.5 text-[#C5A059]" />
                   <span>{t.login}</span>
                 </Link>
                 <Link
                   href="/register"
-                  className="bg-[#C5A059] text-[#0D3B2E] px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-400 transition shadow-sm"
+                  className="bg-[#C5A059] text-[#0D3B2E] px-3.5 py-1.5 rounded-xl text-xs font-bold hover:bg-amber-400 transition shadow-sm whitespace-nowrap"
                 >
                   {t.register}
                 </Link>
               </div>
             )}
+
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition focus:outline-none"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-amber-300" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile & Tablet Responsive Drawer */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer Content */}
+          <div className="relative ml-auto w-full max-w-sm bg-[#062018] text-white h-full shadow-2xl flex flex-col justify-between p-6 overflow-y-auto border-l border-[#C5A059]/30">
+            {/* Top row */}
+            <div>
+              <div className="flex items-center justify-between pb-5 border-b border-white/10 mb-6">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#C5A059] flex items-center justify-center text-[#0D3B2E]">
+                    <Wheat className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="font-black text-sm block">PRAGYAM</span>
+                    <span className="text-[10px] text-amber-300 font-bold tracking-wider">ENTERPRISES</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg bg-white/10 text-gray-300 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* User Identity pill if logged in */}
+              {isAuthenticated && (
+                <div className="bg-[#0D3B2E] p-3.5 rounded-2xl border border-[#C5A059]/30 mb-6">
+                  <div className="flex items-center space-x-2 text-xs font-bold text-amber-300 uppercase mb-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span>{getRoleDisplayName()}</span>
+                  </div>
+                  <p className="text-sm font-black text-white">{getUserLabel()}</p>
+                  <p className="text-[11px] text-gray-300 truncate">{user?.email}</p>
+                </div>
+              )}
+
+              {/* Navigation Items */}
+              <nav className="space-y-2 text-sm font-medium">
+                <Link
+                  href="/"
+                  className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-200 hover:text-white"
+                >
+                  <Wheat className="w-4 h-4 text-[#C5A059]" />
+                  <span>{t.browseStock}</span>
+                </Link>
+
+                {/* Mobile App Link */}
+                <Link
+                  href="/app"
+                  className="flex items-center justify-between p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 hover:bg-amber-500/30 transition"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Smartphone className="w-4 h-4 text-[#C5A059]" />
+                    <span className="font-bold">Pragyam Mobile App</span>
+                  </div>
+                  <span className="text-[10px] bg-amber-400 text-[#0D3B2E] px-2 py-0.5 rounded font-black">
+                    Live Demo
+                  </span>
+                </Link>
+
+                {isAuthenticated && role === UserRole.BUYER && (
+                  <>
+                    <Link
+                      href="/buyer/dashboard?tab=requirements"
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-200"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-[#C5A059]" />
+                      <span>{t.myRequirements}</span>
+                    </Link>
+                    <Link
+                      href="/buyer/dashboard?tab=orders"
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-200"
+                    >
+                      <PackageCheck className="w-4 h-4 text-[#C5A059]" />
+                      <span>{t.myOrders}</span>
+                    </Link>
+                    <Link
+                      href="/buyer/dashboard?tab=enquiries"
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-200"
+                    >
+                      <ClipboardList className="w-4 h-4 text-[#C5A059]" />
+                      <span>My Enquiries</span>
+                    </Link>
+                  </>
+                )}
+
+                {isAuthenticated && role === UserRole.SELLER && (
+                  <>
+                    <Link
+                      href="/seller/dashboard?tab=stock"
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-200"
+                    >
+                      <Building2 className="w-4 h-4 text-[#C5A059]" />
+                      <span>{t.myStock}</span>
+                    </Link>
+                    <Link
+                      href="/seller/dashboard?tab=orders"
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-200"
+                    >
+                      <PackageCheck className="w-4 h-4 text-[#C5A059]" />
+                      <span>{t.myOrders}</span>
+                    </Link>
+                  </>
+                )}
+
+                {isAuthenticated && role === UserRole.SUPER_ADMIN && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center space-x-3 p-3 rounded-xl bg-[#166534] text-amber-200 border border-[#C5A059]/40 font-bold"
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-[#C5A059]" />
+                    <span>Super Admin Desk</span>
+                  </Link>
+                )}
+
+                {!isAuthenticated && (
+                  <>
+                    <a
+                      href="/#assurance"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-300"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-[#C5A059]" />
+                      <span>Confidentiality Model</span>
+                    </a>
+                    <a
+                      href="/#specifications"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/10 transition text-gray-300"
+                    >
+                      <Sparkles className="w-4 h-4 text-[#C5A059]" />
+                      <span>Quality & AGMARK Specs</span>
+                    </a>
+                  </>
+                )}
+              </nav>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="pt-6 border-t border-white/10 space-y-3">
+              {isAuthenticated ? (
+                <>
+                  <button
+                    onClick={handleRoleNav}
+                    className="w-full bg-[#C5A059] text-[#0D3B2E] py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Go to {getRoleDisplayName()} Desk</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full bg-red-950/70 border border-red-500/40 text-red-300 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/login"
+                    className="bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-center text-xs font-bold border border-white/20 flex items-center justify-center space-x-1"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span>{t.login}</span>
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="bg-[#C5A059] text-[#0D3B2E] py-3 rounded-xl text-center text-xs font-bold shadow-md"
+                  >
+                    {t.register}
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

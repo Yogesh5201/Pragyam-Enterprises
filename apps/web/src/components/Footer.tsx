@@ -68,6 +68,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/app" className="text-amber-300 hover:text-white transition flex items-center space-x-1 font-bold">
+                  <span>📱 Pragyam Mobile App (Android/iOS)</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/admin/login" className="hover:text-amber-300 transition flex items-center space-x-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
                   <span>Central Broker Administration</span>

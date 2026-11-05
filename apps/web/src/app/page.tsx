@@ -21,7 +21,8 @@ import {
   LogIn,
   UserPlus,
   Building2,
-  Lock
+  Lock,
+  Smartphone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../lib/apiClient';
@@ -137,6 +138,14 @@ export default function HomePage() {
                     <LogIn className="w-4 h-4 text-[#C5A059]" />
                     <span>Client Sign In</span>
                   </Link>
+
+                  <Link
+                    href="/app"
+                    className="bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/50 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition shadow-lg"
+                  >
+                    <Smartphone className="w-4 h-4 text-[#C5A059]" />
+                    <span>Mobile App (Android/iOS)</span>
+                  </Link>
                 </>
               ) : role === UserRole.BUYER ? (
                 <>
@@ -207,6 +216,34 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Mobile App Announcement Strip */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-gradient-to-r from-emerald-950 via-[#0D3B2E] to-emerald-950 border border-[#C5A059]/40 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#C5A059] flex items-center justify-center text-[#0D3B2E] flex-shrink-0 shadow-lg">
+              <Smartphone className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base sm:text-lg font-black text-white">Trade Anywhere with Pragyam Mobile</h3>
+                <span className="text-[10px] bg-amber-400 text-[#0D3B2E] font-black px-2 py-0.5 rounded-full">Android & iOS</span>
+              </div>
+              <p className="text-xs text-gray-300 mt-0.5">
+                Native buyer procurement & rice miller supply application with real-time enquiry alerts, bilty tracking, and offline purchase order PDFs.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/app"
+            className="bg-[#C5A059] hover:bg-amber-400 text-[#0D3B2E] px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center space-x-2 transition shadow whitespace-nowrap flex-shrink-0"
+          >
+            <span>Open Mobile App Simulator</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
 
       {/* Main Catalog & Search Section */}
       <section id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24">
