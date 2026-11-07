@@ -223,16 +223,16 @@ export default function MobileAppShowcasePage() {
             </button>
           </div>
 
-          {/* Smartphone Hardware Frame */}
+          {/* Smartphone Hardware Frame (Responsive: Native full-screen on mobile, mockup on desktop) */}
           <div
-            className={`w-[360px] sm:w-[390px] h-[780px] bg-black rounded-[48px] p-3.5 shadow-2xl relative border-4 ${
+            className={`w-full max-w-[420px] md:h-[780px] h-[85vh] bg-black md:rounded-[48px] rounded-2xl md:p-3.5 p-0 shadow-2xl relative md:border-4 ${
               deviceType === 'ios' ? 'border-[#383838]' : 'border-[#1E293B]'
             } ring-1 ring-white/20`}
           >
             {/* Phone Screen Glass */}
-            <div className="w-full h-full bg-[#FAF9F6] text-slate-900 rounded-[38px] overflow-hidden flex flex-col relative select-none">
-              {/* Dynamic Island / Camera Notch */}
-              <div className="bg-[#0D3B2E] text-white pt-2 px-6 pb-2 flex items-center justify-between text-xs z-20">
+            <div className="w-full h-full bg-[#FAF9F6] text-slate-900 md:rounded-[38px] rounded-2xl overflow-hidden flex flex-col relative select-none">
+              {/* Dynamic Island / Camera Notch (Desktop Preview) */}
+              <div className="hidden md:flex bg-[#0D3B2E] text-white pt-2 px-6 pb-2 items-center justify-between text-xs z-20">
                 <span className="font-bold text-[11px]">19:50</span>
 
                 {/* Dynamic Island Pill */}

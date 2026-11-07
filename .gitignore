@@ -10,5 +10,7 @@ build/
 !.env.example
 coverage/
 *.tsbuildinfo
+*.keystore
+*.jks
 .DS_Store
 Thumbs.db

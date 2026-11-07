@@ -1,0 +1,23 @@
+{
+  "name": "Pragyam Enterprises - Rice Brokerage",
+  "short_name": "Pragyam",
+  "description": "Confidential Rice Brokerage & Trading Management Platform",
+  "start_url": "/app",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0D3B2E",
+  "theme_color": "#0D3B2E",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/adaptive-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
