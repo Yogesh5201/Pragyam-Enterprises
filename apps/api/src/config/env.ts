@@ -13,8 +13,14 @@ export const ENV = {
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || 'rzp_test_placeholder_secret',
   COMPANY_NAME: 'Pragyam Enterprises',
-  COMPANY_GSTIN: '06AAACP1234F1Z8',
-  COMPANY_ADDRESS: 'G.T. Road, Near Grain Market, Karnal, Haryana - 132001',
-  COMPANY_PHONE: '+91 98120 00000',
-  COMPANY_EMAIL: 'contact@pragyam.com'
+  COMPANY_OWNER: 'Nikhil Bansal',
+  COMPANY_PAN: 'HSAPB2553Q',
+  COMPANY_GSTIN: '06HSAPB2553Q1Z5',
+  COMPANY_ADDRESS: 'New Anaj Mandi, Tohana, Haryana - 125120',
+  COMPANY_PHONE: '+91 98963 46337, +91 94163 65869',
+  COMPANY_EMAIL: 'pragyamenterprises1@gmail.com',
+  BANK_NAME: 'Bank of Baroda, Tohana Branch',
+  BANK_ACCOUNT_NAME: 'Nikhil Bansal / Pragyam Enterprises',
+  BANK_ACCOUNT_NUMBER: '53600100009068',
+  BANK_IFSC: 'BARB0TOHANA'
 };

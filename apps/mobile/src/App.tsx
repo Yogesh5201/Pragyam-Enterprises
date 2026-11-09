@@ -16,11 +16,12 @@ import { SellerStockScreen } from './screens/SellerStockScreen';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { DispatchScreen } from './screens/DispatchScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
 
 function MainAppNavigator() {
   const { role, language, isAuthenticated } = useMobileAuth();
   const [inWelcomeFlow, setInWelcomeFlow] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'catalog' | 'requirements' | 'stock' | 'orders' | 'dispatch' | 'profile'>('catalog');
+  const [currentTab, setCurrentTab] = useState<'catalog' | 'requirements' | 'stock' | 'orders' | 'dispatch' | 'notifications' | 'profile'>('catalog');
 
   if (inWelcomeFlow || !isAuthenticated) {
     return <WelcomeScreen onEnterApp={() => setInWelcomeFlow(false)} />;
@@ -37,22 +38,36 @@ function MainAppNavigator() {
           <View>
             <Text style={styles.headerTitle}>PRAGYAM ENTERPRISES</Text>
             <Text style={styles.headerSub}>
-              {role === 'BUYER' ? 'Buyer Procurement Mode' : 'Rice Miller Supply Mode'}
+              {role === 'BUYER' ? 'Buyer Procurement Desk' : 'Rice Miller Supply Desk'} • Tohana
             </Text>
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={() => setInWelcomeFlow(true)}
-          style={styles.switchRolePill}
-        >
-          <Text style={styles.switchRoleText}>Switch</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            onPress={() => setCurrentTab('notifications')}
+            style={[styles.bellBtn, currentTab === 'notifications' && styles.bellBtnActive]}
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            <View style={styles.badgePill}>
+              <Text style={styles.badgeText}>2</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setInWelcomeFlow(true)}
+            style={styles.switchRolePill}
+          >
+            <Text style={styles.switchRoleText}>Switch</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main Screen Body */}
       <View style={styles.body}>
-        {role === 'BUYER' ? (
+        {currentTab === 'notifications' ? (
+          <NotificationsScreen />
+        ) : role === 'BUYER' ? (
           <>
             {currentTab === 'catalog' && <BuyerCatalogScreen />}
             {currentTab === 'requirements' && <BuyerRequirementsScreen />}
@@ -118,6 +133,16 @@ function MainAppNavigator() {
 
             <TouchableOpacity
               style={styles.tabBtn}
+              onPress={() => setCurrentTab('notifications')}
+            >
+              <Text style={[styles.tabIcon, currentTab === 'notifications' && styles.tabActive]}>🔔</Text>
+              <Text style={[styles.tabLabel, currentTab === 'notifications' && styles.tabLabelActive]}>
+                {language === 'hi' ? 'सूचनाएं' : 'Alerts'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabBtn}
               onPress={() => setCurrentTab('profile')}
             >
               <Text style={[styles.tabIcon, currentTab === 'profile' && styles.tabActive]}>👤</Text>
@@ -155,6 +180,16 @@ function MainAppNavigator() {
               <Text style={[styles.tabIcon, currentTab === 'dispatch' && styles.tabActive]}>🚚</Text>
               <Text style={[styles.tabLabel, currentTab === 'dispatch' && styles.tabLabelActive]}>
                 {language === 'hi' ? 'डिस्पैच' : 'Dispatch'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabBtn}
+              onPress={() => setCurrentTab('notifications')}
+            >
+              <Text style={[styles.tabIcon, currentTab === 'notifications' && styles.tabActive]}>🔔</Text>
+              <Text style={[styles.tabLabel, currentTab === 'notifications' && styles.tabLabelActive]}>
+                {language === 'hi' ? 'सूचनाएं' : 'Alerts'}
               </Text>
             </TouchableOpacity>
 
@@ -226,6 +261,40 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#FEF3C7',
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bellBtn: {
+    position: 'relative',
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  bellBtnActive: {
+    backgroundColor: 'rgba(197, 160, 89, 0.3)',
+  },
+  bellIcon: {
+    fontSize: 15,
+  },
+  badgePill: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    borderRadius: 6,
+    minWidth: 12,
+    height: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '900',
   },
   body: {
     flex: 1,

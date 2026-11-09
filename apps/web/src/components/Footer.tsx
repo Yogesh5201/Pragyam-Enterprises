@@ -89,18 +89,19 @@ export function Footer() {
             <div className="space-y-2.5 text-xs text-gray-400">
               <div className="flex items-start space-x-2">
                 <MapPin className="w-4 h-4 text-[#C5A059] flex-shrink-0 mt-0.5" />
-                <span>G.T. Road, Near Grain Market Hub, Karnal, Haryana - 132001, India</span>
+                <span>New Anaj Mandi, Tohana, Haryana - 125120, India</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Phone className="w-4 h-4 text-[#C5A059] flex-shrink-0" />
-                <span>+91 98120 00000 / Desk: 0184-220000</span>
+                <span>+91 98963 46337 / +91 94163 65869</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4 text-[#C5A059] flex-shrink-0" />
-                <span>desk@pragyam.com</span>
+                <span>pragyamenterprises1@gmail.com</span>
               </div>
-              <div className="text-[11px] text-gray-500 pt-2 border-t border-white/5">
-                GSTIN: 06AAACP1234F1Z8 | Brokerage SAC: 998319
+              <div className="text-[11px] text-gray-500 pt-2 border-t border-white/5 space-y-1">
+                <div>PAN: <strong className="text-gray-400">HSAPB2553Q</strong> | GST: <strong className="text-gray-400">06HSAPB2553Q1Z5</strong></div>
+                <div className="text-[#C5A059]">Bank of Baroda | A/C: 53600100009068 | IFSC: BARB0TOHANA</div>
               </div>
             </div>
           </div>

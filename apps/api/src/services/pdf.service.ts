@@ -46,7 +46,7 @@ export function generatePurchaseOrderPdf(
 
     doc.fillColor('#0D3B2E').fontSize(10).text('ISSUED THROUGH BROKER:', 48, 212, { bold: true } as any);
     doc.fillColor('#334155').fontSize(9).text('PRAGYAM ENTERPRISES (Central Brokerage Desk)', 48, 226);
-    doc.text(`Karnal, Haryana Hub`, 48, 238);
+    doc.text(`New Anaj Mandi, Tohana, Haryana Hub`, 48, 238);
     doc.text(`Transaction Reference: PO-${po.poNumber}`, 48, 250);
 
     if (userRole === 'ADMIN') {
@@ -190,8 +190,8 @@ export function generateInvoicePdf(invoice: InvoiceDTO): Promise<Buffer> {
     doc.text(`₹${invoice.grandTotal?.toLocaleString('en-IN')}`, 420, y, { bold: true } as any);
 
     // Footer
-    doc.fillColor('#64748B').fontSize(8.5).text('Bank Account: Pragyam Enterprises | HDFC Bank, Karnal Branch | IFSC: HDFC0001234 | A/C: 50200012345678', 40, 450);
-    doc.text('Terms: Payment due within 7 days of invoice date. Subject to Karnal, Haryana Jurisdiction.', 40, 465);
+    doc.fillColor('#64748B').fontSize(8.5).text('Bank Account: Nikhil Bansal / Pragyam Enterprises | Bank of Baroda, Tohana Branch | IFSC: BARB0TOHANA | A/C: 53600100009068', 40, 450);
+    doc.text('Terms: Payment due within 7 days of invoice date. Subject to Tohana / Fatehabad, Haryana Jurisdiction.', 40, 465);
 
     doc.end();
   });
