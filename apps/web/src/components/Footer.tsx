@@ -100,7 +100,7 @@ export function Footer() {
                 <span>pragyamenterprises1@gmail.com</span>
               </div>
               <div className="text-[11px] text-gray-500 pt-2 border-t border-white/5 space-y-1">
-                <div>PAN: <strong className="text-gray-400">HSAPB2553Q</strong> | GST: <strong className="text-gray-400">06HSAPB2553Q1Z5</strong></div>
+                <div>PAN: <strong className="text-gray-400">HSAPB2553Q</strong></div>
                 <div className="text-[#C5A059]">Bank of Baroda | A/C: 53600100009068 | IFSC: BARB0TOHANA</div>
               </div>
             </div>

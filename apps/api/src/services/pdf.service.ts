@@ -21,7 +21,7 @@ export function generatePurchaseOrderPdf(
     doc.fillColor('#0D3B2E').fontSize(22).text('PRAGYAM ENTERPRISES', 40, 40, { bold: true } as any);
     doc.fillColor('#C5A059').fontSize(11).text('RICE BROKERAGE & COMMODITY TRADING MANAGEMENT', 40, 68);
     doc.fillColor('#64748B').fontSize(9).text(ENV.COMPANY_ADDRESS, 40, 84);
-    doc.text(`GSTIN: ${ENV.COMPANY_GSTIN} | Contact: ${ENV.COMPANY_PHONE} | Email: ${ENV.COMPANY_EMAIL}`, 40, 96);
+    doc.text(`PAN: ${ENV.COMPANY_PAN} | Contact: ${ENV.COMPANY_PHONE} | Email: ${ENV.COMPANY_EMAIL}`, 40, 96);
 
     doc.strokeColor('#CBD5E1').lineWidth(1).moveTo(40, 115).lineTo(555, 115).stroke();
 
@@ -139,7 +139,7 @@ export function generateInvoicePdf(invoice: InvoiceDTO): Promise<Buffer> {
     // Header
     doc.fillColor('#0D3B2E').fontSize(22).text('PRAGYAM ENTERPRISES', 40, 40, { bold: true } as any);
     doc.fillColor('#C5A059').fontSize(11).text('TAX INVOICE - BROKERAGE SERVICES', 40, 68);
-    doc.fillColor('#64748B').fontSize(9).text(`${ENV.COMPANY_ADDRESS} | GSTIN: ${ENV.COMPANY_GSTIN}`, 40, 84);
+    doc.fillColor('#64748B').fontSize(9).text(`${ENV.COMPANY_ADDRESS} | PAN: ${ENV.COMPANY_PAN}`, 40, 84);
 
     doc.strokeColor('#CBD5E1').lineWidth(1).moveTo(40, 105).lineTo(555, 105).stroke();
 

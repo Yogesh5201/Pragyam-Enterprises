@@ -521,7 +521,6 @@ class ServerlessDataStore {
       poId: 'po-401',
       poNumber: 'PO-2026-9042',
       issuerName: 'Pragyam Enterprises',
-      issuerGstin: '06HSAPB2553Q1Z5',
       issuerPan: 'HSAPB2553Q',
       bankDetails: 'Bank of Baroda | Tohana | A/C: 53600100009068 | IFSC: BARB0TOHANA (Nikhil Bansal)',
       billedToRole: UserRole.BUYER,

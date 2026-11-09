@@ -15,7 +15,6 @@ export const ENV = {
   COMPANY_NAME: 'Pragyam Enterprises',
   COMPANY_OWNER: 'Nikhil Bansal',
   COMPANY_PAN: 'HSAPB2553Q',
-  COMPANY_GSTIN: '06HSAPB2553Q1Z5',
   COMPANY_ADDRESS: 'New Anaj Mandi, Tohana, Haryana - 125120',
   COMPANY_PHONE: '+91 98963 46337, +91 94163 65869',
   COMPANY_EMAIL: 'pragyamenterprises1@gmail.com',

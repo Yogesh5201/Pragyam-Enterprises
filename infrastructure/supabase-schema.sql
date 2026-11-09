@@ -414,7 +414,7 @@ ON CONFLICT DO NOTHING;
 
 -- 9. GST Brokerage Invoice
 INSERT INTO "InvoiceRecord" ("id", "invoiceNumber", "invoiceType", "poId", "issuerName", "issuerGstin", "clientName", "clientGstin", "taxableAmount", "cgstPercent", "cgstAmount", "sgstPercent", "sgstAmount", "totalTax", "grandTotal", "hsnSacCode")
-VALUES ('inv-701', 'PRG/INV/2026/042', 'BROKERAGE_INVOICE', 'po-401', 'Pragyam Enterprises', '06HSAPB2553Q1Z5', 'Royal Feast Global Exporters Pvt Ltd', '07AABCR9911K1ZX', 37000.00, 9.0, 3330.00, 9.0, 3330.00, 6660.00, 43660.00, '998319')
+VALUES ('inv-701', 'PRG/INV/2026/042', 'BROKERAGE_INVOICE', 'po-401', 'Pragyam Enterprises', NULL, 'Royal Feast Global Exporters Pvt Ltd', '07AABCR9911K1ZX', 37000.00, 9.0, 3330.00, 9.0, 3330.00, 6660.00, 43660.00, '998319')
 ON CONFLICT DO NOTHING;
 
 -- 10. Audit Log
