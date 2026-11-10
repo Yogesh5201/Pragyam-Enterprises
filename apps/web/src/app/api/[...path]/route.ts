@@ -475,58 +475,123 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
     });
   }
 
-  // 3. User Registration
-  if (path === 'auth/register') {
-    const { email, password, role, fullName, companyName, phone, businessType, millName } = body;
+  // 3. User Registration (Buyer, Seller & General)
+  if (
+    path === 'auth/register/seller' ||
+    path === 'auth/register/buyer' ||
+    path === 'auth/register'
+  ) {
+    const isSeller = path.includes('seller') || body.role === UserRole.SELLER || body.role === 'SELLER';
+    const {
+      email,
+      password,
+      fullName,
+      companyName,
+      phone,
+      address,
+      city,
+      district,
+      state,
+      pinCode,
+      gstin,
+      businessType,
+      millName,
+      millCapacityMTPerDay,
+      dispatchLocations
+    } = body;
+
+    if (!email || !password || !fullName || !companyName || !phone) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Please fill in all mandatory fields (Name, Business Name, Phone, Email, Password).'
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingUser = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'This email address is already registered. Please login instead.'
+        },
+        { status: 409 }
+      );
+    }
+
     const newUser = {
       id: `usr-${Date.now()}`,
-      email,
-      password: password || 'Pragyam@2026',
-      role: role || UserRole.BUYER,
+      email: email.toLowerCase(),
+      password,
+      role: isSeller ? UserRole.SELLER : UserRole.BUYER,
       status: 'ACTIVE' as any,
       mfaEnabled: false,
       createdAt: new Date().toISOString()
     };
     db.users.push(newUser);
 
-    if (role === UserRole.SELLER) {
-      db.sellerProfiles.push({
+    let profile: any = null;
+
+    if (isSeller) {
+      profile = {
         id: `sel-${Date.now()}`,
         userId: newUser.id,
-        fullName: fullName || 'Miller Partner',
+        fullName,
         companyName: companyName || millName || 'Rice Mill Enterprise',
-        phone: phone || '+91 98000 00000',
-        address: 'Industrial Grain Area',
-        city: 'Karnal',
-        district: 'Karnal',
-        state: 'Haryana',
-        pinCode: '132001',
+        phone,
+        address: address || 'Industrial Area',
+        city: city || 'Tohana',
+        district: district || city || 'Fatehabad',
+        state: state || 'Haryana',
+        pinCode: pinCode || '125120',
+        gstin: gstin || '',
         businessType: businessType || 'RICE_MILLER',
-        millName: millName || companyName || 'Rice Mill Unit',
-        dispatchLocations: ['Karnal Depot'],
-        isVerified: true
-      });
+        millName: millName || companyName || 'Rice Mill Enterprise',
+        millCapacityMTPerDay: Number(millCapacityMTPerDay) || 100,
+        dispatchLocations: Array.isArray(dispatchLocations) ? dispatchLocations : [city || 'Mill Depot'],
+        isVerified: true,
+        createdAt: new Date().toISOString()
+      };
+      db.sellerProfiles.push(profile);
     } else {
-      db.buyerProfiles.push({
+      profile = {
         id: `buy-${Date.now()}`,
         userId: newUser.id,
-        fullName: fullName || 'Purchaser Partner',
+        fullName,
         companyName: companyName || 'Grain Trading Co',
-        phone: phone || '+91 98000 00000',
-        address: 'APMC Market Hub',
-        city: 'New Delhi',
-        district: 'New Delhi',
-        state: 'Delhi',
-        pinCode: '110001',
+        phone,
+        address: address || 'Market Yard',
+        city: city || 'New Delhi',
+        district: district || city || 'New Delhi',
+        state: state || 'Delhi',
+        pinCode: pinCode || '110001',
+        gstin: gstin || '',
         businessType: businessType || 'EXPORTER',
-        isVerified: true
-      });
+        isVerified: true,
+        createdAt: new Date().toISOString()
+      };
+      db.buyerProfiles.push(profile);
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Account registered successfully. You may now sign in.'
-    });
+    const token = `pragyam-client-token-${newUser.id}`;
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `${isSeller ? 'Rice Miller' : 'Authorized Buyer'} registration completed successfully.`,
+        token,
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          role: newUser.role,
+          fullName,
+          profile
+        }
+      },
+      { status: 201 }
+    );
   }
 
   // 4. Submit Enquiry
