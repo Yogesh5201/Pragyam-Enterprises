@@ -75,6 +75,29 @@ export default function RegisterPage() {
       });
 
       if (res.success && res.data?.token) {
+        try {
+          const key = accountType === 'BUYER' ? 'pragyam_registered_buyers' : 'pragyam_registered_sellers';
+          const existing = JSON.parse(localStorage.getItem(key) || '[]');
+          const newProfile = res.data.user?.profile || {
+            id: `${accountType.toLowerCase()}-${Date.now()}`,
+            userId: res.data.user?.id,
+            fullName: payload.fullName,
+            companyName: payload.companyName,
+            phone: payload.phone,
+            email: payload.email,
+            city: payload.city,
+            state: payload.state,
+            businessType: payload.businessType,
+            gstin: payload.gstin,
+            isVerified: true,
+            createdAt: new Date().toISOString()
+          };
+          existing.unshift(newProfile);
+          localStorage.setItem(key, JSON.stringify(existing));
+        } catch (e) {
+          // ignore
+        }
+
         login(res.data.token, res.data.user);
         router.push(accountType === 'BUYER' ? '/buyer/dashboard' : '/seller/dashboard');
       } else {

@@ -95,6 +95,19 @@ export default function SuperAdminDashboard() {
     freightCharges: '35000',
   });
 
+  const [isAddBuyerOpen, setIsAddBuyerOpen] = useState(false);
+  const [newBuyerForm, setNewBuyerForm] = useState({
+    fullName: '',
+    companyName: '',
+    phone: '',
+    email: '',
+    password: 'Pragyam@Buyer2026',
+    city: 'New Delhi',
+    state: 'Delhi',
+    pinCode: '110001',
+    businessType: 'EXPORTER'
+  });
+
   // Verify Admin role
   useEffect(() => {
     if (!isLoading) {
@@ -105,6 +118,22 @@ export default function SuperAdminDashboard() {
       }
     }
   }, [isLoading, isAuthenticated, role]);
+
+  // Re-fetch data automatically on tab change to guarantee fresh records
+  useEffect(() => {
+    if (isAuthenticated && role === UserRole.SUPER_ADMIN) {
+      loadAllData();
+    }
+  }, [activeTab]);
+
+  // Periodic background refresh every 12 seconds to capture live user registrations
+  useEffect(() => {
+    if (!isAuthenticated || role !== UserRole.SUPER_ADMIN) return;
+    const interval = setInterval(() => {
+      loadAllData();
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, role]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -159,10 +188,32 @@ export default function SuperAdminDashboard() {
         setInvoices(invoicesRes.data.invoices || []);
       }
       if (buyersRes.success && buyersRes.data) {
-        setBuyers(buyersRes.data.buyers || []);
+        let serverBuyers = [...(buyersRes.data.buyers || [])];
+        try {
+          const localBuyers = JSON.parse(localStorage.getItem('pragyam_registered_buyers') || '[]');
+          for (const lb of localBuyers) {
+            if (!serverBuyers.some((sb: any) => sb.id === lb.id || (sb.email && lb.email && sb.email.toLowerCase() === lb.email.toLowerCase()))) {
+              serverBuyers.unshift(lb);
+              apiRequest('/users/admin/sync-buyer', {
+                method: 'POST',
+                body: JSON.stringify({ buyer: lb })
+              }).catch(() => {});
+            }
+          }
+        } catch (e) {}
+        setBuyers(serverBuyers);
       }
       if (sellersRes.success && sellersRes.data) {
-        setSellers(sellersRes.data.sellers || []);
+        let serverSellers = [...(sellersRes.data.sellers || [])];
+        try {
+          const localSellers = JSON.parse(localStorage.getItem('pragyam_registered_sellers') || '[]');
+          for (const ls of localSellers) {
+            if (!serverSellers.some((ss: any) => ss.id === ls.id || (ss.email && ls.email && ss.email.toLowerCase() === ls.email.toLowerCase()))) {
+              serverSellers.unshift(ls);
+            }
+          }
+        } catch (e) {}
+        setSellers(serverSellers);
       }
       if (auditRes.success && auditRes.data) {
         setAuditLogs(auditRes.data.logs || auditRes.data.auditLogs || []);
@@ -183,6 +234,36 @@ export default function SuperAdminDashboard() {
   const showNotification = (msg: string) => {
     setActionSuccess(msg);
     setTimeout(() => setActionSuccess(null), 4000);
+  };
+
+  const handleCreateBuyer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await apiRequest('/auth/register/buyer', {
+        method: 'POST',
+        body: JSON.stringify(newBuyerForm)
+      });
+      if (res.success) {
+        showNotification(`Buyer ${newBuyerForm.companyName} registered and added to directory!`);
+        setIsAddBuyerOpen(false);
+        setNewBuyerForm({
+          fullName: '',
+          companyName: '',
+          phone: '',
+          email: '',
+          password: 'Pragyam@Buyer2026',
+          city: 'New Delhi',
+          state: 'Delhi',
+          pinCode: '110001',
+          businessType: 'EXPORTER'
+        });
+        loadAllData();
+      } else {
+        setActionError(res.error || 'Failed to register buyer');
+      }
+    } catch (e: any) {
+      setActionError(e.message);
+    }
   };
 
   // 1. Issue Official PO from Confirmed Negotiation
@@ -1259,10 +1340,156 @@ export default function SuperAdminDashboard() {
           {/* TAB 9: BUYERS DIRECTORY */}
           {activeTab === 'buyers' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">Registered Buyers Directory</h2>
-                <p className="text-xs text-slate-500">Exporters, wholesalers, and institutional buyers verified on the platform.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-xl font-black text-slate-900">Registered Buyers Directory</h2>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {buyers.length} Verified
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">Exporters, wholesalers, and institutional buyers registered on Pragyam Central Desk.</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => loadAllData()}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    <span>Sync Directory</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAddBuyerOpen(true)}
+                    className="bg-[#0D3B2E] text-white hover:bg-[#092b21] px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+                  >
+                    <Users className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span>+ Register New Buyer</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Add Buyer Modal */}
+              {isAddBuyerOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <div>
+                        <h3 className="text-base font-black text-slate-900">Register Buyer in Platform Directory</h3>
+                        <p className="text-xs text-slate-500">Add verified bulk grain buyer or exporter</p>
+                      </div>
+                      <button onClick={() => setIsAddBuyerOpen(false)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleCreateBuyer} className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Company / Business Name *</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="e.g. Apex Agri Exports Ltd"
+                            value={newBuyerForm.companyName}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, companyName: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Representative Name *</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="e.g. Rahul Sharma"
+                            value={newBuyerForm.fullName}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, fullName: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Mobile Phone *</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="+91 98000 00000"
+                            value={newBuyerForm.phone}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, phone: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Official Email *</label>
+                          <input
+                            required
+                            type="email"
+                            placeholder="buyer@domain.com"
+                            value={newBuyerForm.email}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, email: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">City *</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="New Delhi"
+                            value={newBuyerForm.city}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, city: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">State *</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="Delhi"
+                            value={newBuyerForm.state}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, state: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Business Type</label>
+                          <select
+                            value={newBuyerForm.businessType}
+                            onChange={e => setNewBuyerForm({ ...newBuyerForm, businessType: e.target.value })}
+                            className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D3B2E]"
+                          >
+                            <option value="EXPORTER">Exporter</option>
+                            <option value="WHOLESALER">Wholesaler</option>
+                            <option value="INSTITUTIONAL_BUYER">Institutional Buyer</option>
+                            <option value="COMMODITY_TRADER">Commodity Trader</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end space-x-2 pt-3 border-t">
+                        <button
+                          type="button"
+                          onClick={() => setIsAddBuyerOpen(false)}
+                          className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2 rounded-xl bg-[#0D3B2E] text-white hover:bg-[#092b21] font-bold shadow-md"
+                        >
+                          Complete Buyer Registration
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <table className="w-full text-left text-xs">

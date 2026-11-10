@@ -797,19 +797,67 @@ class ServerlessDataStore {
       if (fs.existsSync(p)) {
         const raw = fs.readFileSync(p, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (parsed.listings && parsed.listings.length > 0) {
-          this.users = parsed.users || this.users;
-          this.buyerProfiles = parsed.buyerProfiles || this.buyerProfiles;
-          this.sellerProfiles = parsed.sellerProfiles || this.sellerProfiles;
-          this.listings = parsed.listings || this.listings;
-          this.requirements = parsed.requirements || this.requirements;
-          this.enquiries = parsed.enquiries || this.enquiries;
-          this.negotiations = parsed.negotiations || this.negotiations;
-          this.purchaseOrders = parsed.purchaseOrders || this.purchaseOrders;
-          this.transportRecords = parsed.transportRecords || this.transportRecords;
-          this.payments = parsed.payments || this.payments;
-          this.invoices = parsed.invoices || this.invoices;
-          this.auditLogs = parsed.auditLogs || this.auditLogs;
+        if (parsed && typeof parsed === 'object') {
+          if (Array.isArray(parsed.users)) {
+            const userMap = new Map(this.users.map(u => [u.id, u]));
+            parsed.users.forEach((u: any) => userMap.set(u.id, u));
+            this.users = Array.from(userMap.values());
+          }
+          if (Array.isArray(parsed.buyerProfiles)) {
+            const buyerMap = new Map(this.buyerProfiles.map(b => [b.id, b]));
+            parsed.buyerProfiles.forEach((b: any) => buyerMap.set(b.id, b));
+            this.buyerProfiles = Array.from(buyerMap.values());
+          }
+          if (Array.isArray(parsed.sellerProfiles)) {
+            const sellerMap = new Map(this.sellerProfiles.map(s => [s.id, s]));
+            parsed.sellerProfiles.forEach((s: any) => sellerMap.set(s.id, s));
+            this.sellerProfiles = Array.from(sellerMap.values());
+          }
+          if (Array.isArray(parsed.listings)) {
+            const listingMap = new Map(this.listings.map(l => [l.id, l]));
+            parsed.listings.forEach((l: any) => listingMap.set(l.id, l));
+            this.listings = Array.from(listingMap.values());
+          }
+          if (Array.isArray(parsed.requirements)) {
+            const reqMap = new Map(this.requirements.map(r => [r.id, r]));
+            parsed.requirements.forEach((r: any) => reqMap.set(r.id, r));
+            this.requirements = Array.from(reqMap.values());
+          }
+          if (Array.isArray(parsed.enquiries)) {
+            const enqMap = new Map(this.enquiries.map(e => [e.id, e]));
+            parsed.enquiries.forEach((e: any) => enqMap.set(e.id, e));
+            this.enquiries = Array.from(enqMap.values());
+          }
+          if (Array.isArray(parsed.negotiations)) {
+            const negMap = new Map(this.negotiations.map(n => [n.id, n]));
+            parsed.negotiations.forEach((n: any) => negMap.set(n.id, n));
+            this.negotiations = Array.from(negMap.values());
+          }
+          if (Array.isArray(parsed.purchaseOrders)) {
+            const poMap = new Map(this.purchaseOrders.map(p => [p.id, p]));
+            parsed.purchaseOrders.forEach((p: any) => poMap.set(p.id, p));
+            this.purchaseOrders = Array.from(poMap.values());
+          }
+          if (Array.isArray(parsed.transportRecords)) {
+            const trMap = new Map(this.transportRecords.map(t => [t.id, t]));
+            parsed.transportRecords.forEach((t: any) => trMap.set(t.id, t));
+            this.transportRecords = Array.from(trMap.values());
+          }
+          if (Array.isArray(parsed.payments)) {
+            const payMap = new Map(this.payments.map(p => [p.id, p]));
+            parsed.payments.forEach((p: any) => payMap.set(p.id, p));
+            this.payments = Array.from(payMap.values());
+          }
+          if (Array.isArray(parsed.invoices)) {
+            const invMap = new Map(this.invoices.map(i => [i.id, i]));
+            parsed.invoices.forEach((i: any) => invMap.set(i.id, i));
+            this.invoices = Array.from(invMap.values());
+          }
+          if (Array.isArray(parsed.auditLogs)) {
+            const auditMap = new Map(this.auditLogs.map(a => [a.id, a]));
+            parsed.auditLogs.forEach((a: any) => auditMap.set(a.id, a));
+            this.auditLogs = Array.from(auditMap.values());
+          }
         }
       }
     } catch (e) {

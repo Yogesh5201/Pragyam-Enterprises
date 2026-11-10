@@ -58,6 +58,7 @@ function sanitizeListing(l: any) {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
+  db.loadFromDisk();
   const path = params.path.join('/');
   const { searchParams } = new URL(request.url);
 
@@ -455,6 +456,7 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 }
 
 export async function POST(request: NextRequest, { params }: { params: { path: string[] } }) {
+  db.loadFromDisk();
   const rawPath = params.path.join('/');
   const path = rawPath.replace(/^\/+|\/+$/g, '').toLowerCase();
   let body: any = {};
@@ -578,7 +580,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       mfaEnabled: false,
       createdAt: new Date().toISOString()
     };
-    db.users.push(newUser);
+    db.users.unshift(newUser);
 
     let profile: any = null;
 
@@ -586,6 +588,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       profile = {
         id: `sel-${Date.now()}`,
         userId: newUser.id,
+        email: newUser.email,
         fullName,
         companyName: companyName || millName || 'Rice Mill Enterprise',
         phone,
@@ -602,11 +605,12 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
         isVerified: true,
         createdAt: new Date().toISOString()
       };
-      db.sellerProfiles.push(profile);
+      db.sellerProfiles.unshift(profile);
     } else {
       profile = {
         id: `buy-${Date.now()}`,
         userId: newUser.id,
+        email: newUser.email,
         fullName,
         companyName: companyName || 'Grain Trading Co',
         phone,
@@ -620,7 +624,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
         isVerified: true,
         createdAt: new Date().toISOString()
       };
-      db.buyerProfiles.push(profile);
+      db.buyerProfiles.unshift(profile);
     }
 
     db.persist();
@@ -969,10 +973,42 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
     });
   }
 
+  // 11. Sync Buyer from Client / Admin
+  if (path === 'users/admin/sync-buyer' || path === 'users/sync-buyer') {
+    const { buyer } = body;
+    if (buyer && buyer.companyName) {
+      const existing = db.buyerProfiles.find(
+        b => b.id === buyer.id || (b.companyName.toLowerCase() === buyer.companyName.toLowerCase() && b.phone === buyer.phone)
+      );
+      if (!existing) {
+        db.buyerProfiles.unshift({
+          id: buyer.id || `buy-${Date.now()}`,
+          userId: buyer.userId || `usr-${Date.now()}`,
+          fullName: buyer.fullName || 'Authorized Buyer',
+          companyName: buyer.companyName,
+          phone: buyer.phone || '+91 98000 00000',
+          email: buyer.email || 'buyer@pragyam.com',
+          address: buyer.address || 'Market Yard',
+          city: buyer.city || 'New Delhi',
+          district: buyer.district || buyer.city || 'New Delhi',
+          state: buyer.state || 'Delhi',
+          pinCode: buyer.pinCode || '110001',
+          gstin: buyer.gstin || '',
+          businessType: buyer.businessType || 'EXPORTER',
+          isVerified: buyer.isVerified !== undefined ? buyer.isVerified : true,
+          createdAt: buyer.createdAt || new Date().toISOString()
+        } as any);
+        db.persist();
+      }
+    }
+    return NextResponse.json({ success: true, buyers: db.buyerProfiles });
+  }
+
   return NextResponse.json({ success: false, error: `Endpoint not found: POST ${path}` }, { status: 404 });
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { path: string[] } }) {
+  db.loadFromDisk();
   const path = params.path.join('/');
   let body: any = {};
   try {
