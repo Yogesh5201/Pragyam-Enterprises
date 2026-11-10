@@ -22,23 +22,38 @@ export async function apiRequest<T = any>(
     });
 
     // Handle binary responses (PDF or Excel)
-    const contentType = response.headers.get('content-type');
+    const contentType = response.headers.get('content-type') || '';
     if (
-      contentType?.includes('application/pdf') ||
-      contentType?.includes('application/vnd.openxmlformats')
+      contentType.includes('application/pdf') ||
+      contentType.includes('application/vnd.openxmlformats') ||
+      contentType.includes('application/octet-stream') ||
+      contentType.includes('text/csv')
     ) {
+      if (!response.ok) {
+        return {
+          success: false,
+          error: `Download failed with server status ${response.status}`
+        };
+      }
       const blob = await response.blob();
-      return { success: response.ok, data: blob as any };
+      return { success: true, data: blob as any };
     }
 
-    const result = await response.json();
     if (!response.ok) {
+      let errorMessage = `Request failed with status ${response.status}`;
+      try {
+        const result = await response.json();
+        errorMessage = result.error || errorMessage;
+      } catch {
+        // Not valid JSON
+      }
       return {
         success: false,
-        error: result.error || `Request failed with status ${response.status}`,
+        error: errorMessage,
       };
     }
 
+    const result = await response.json();
     return { success: true, data: result };
   } catch (err: any) {
     return { success: false, error: err.message || 'Network error connecting to Pragyam Server' };

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '../../../server/mockDb';
 import { UserRole, ListingStatus, PurchaseOrderStatus, TransportStatus, PaymentStatus } from '@pragyam/types';
+import {
+  generateExcelWorkbook,
+  generatePurchaseOrderPdfBuffer,
+  generateInvoicePdfBuffer
+} from '../../../server/documentService';
 
 // Helper to sanitize listing for anonymous buyer/public view
 function sanitizeListing(l: any) {
@@ -213,36 +218,31 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 10. Purchase Order PDF Download
   if (path.startsWith('purchase-orders/') && path.endsWith('/pdf')) {
-    const pdfContent = `%PDF-1.4
-1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
-2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
-3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj
-4 0 obj << /Length 120 >> stream
-BT
-/F1 18 Tf
-50 720 Td
-(PRAGYAM ENTERPRISES - OFFICIAL PURCHASE ORDER) Tj
-/F1 12 Tf
-50 690 Td
-(PO NUMBER: PO-2026-9042 | COMMODITY: 1509 STEAM BASMATI | VALUE: INR 74,00,000) Tj
-ET
-endstream endobj
-xref
-0 5
-0000000000 65535 f 
-0000000010 00000 n 
-0000000060 00000 n 
-0000000120 00000 n 
-0000000210 00000 n 
-trailer << /Size 5 /Root 1 0 R >>
-startxref
-380
-%%EOF`;
-    return new NextResponse(pdfContent, {
+    const segments = path.split('/');
+    const poId = segments[1];
+    const po = db.purchaseOrders.find(p => p.id === poId || p.poNumber === poId) || db.purchaseOrders[0];
+    const pdfBuf = await generatePurchaseOrderPdfBuffer(po);
+    return new NextResponse(pdfBuf, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="PO-2026-9042.pdf"'
+        'Content-Disposition': `attachment; filename="${po.poNumber || 'PO-2026-9042'}.pdf"`
+      }
+    });
+  }
+
+  // 10b. Invoice PDF Download
+  if (path.startsWith('invoices/') && path.endsWith('/pdf')) {
+    const segments = path.split('/');
+    const invId = segments[1];
+    const inv = db.invoices.find(i => i.id === invId || i.invoiceNumber === invId) || db.invoices[0];
+    const pdfBuf = await generateInvoicePdfBuffer(inv);
+    const safeInvNum = (inv.invoiceNumber || 'Invoice').replace(/\//g, '_');
+    return new NextResponse(pdfBuf, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${safeInvNum}.pdf"`
       }
     });
   }
@@ -330,14 +330,15 @@ startxref
     return NextResponse.json({ success: true, sellers: db.sellerProfiles });
   }
 
-  // 17. Excel Export Mock
+  // 17. Genuine Excel (.xlsx) Export
   if (path.startsWith('export/admin/excel/')) {
-    const csvContent = `ID,Commodity,Quantity_MT,Rate_Per_Qtl,Status\nPO-2026-9042,1509 Steam Basmati,100,7400,IN_TRANSIT\n`;
-    return new NextResponse(csvContent, {
+    const dataset = path.replace('export/admin/excel/', '');
+    const xlsxBuf = generateExcelWorkbook(dataset);
+    return new NextResponse(xlsxBuf, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="Pragyam_Export.xlsx"'
+        'Content-Disposition': `attachment; filename="Pragyam_${dataset}_report_${Date.now()}.xlsx"`
       }
     });
   }

@@ -10,6 +10,9 @@ const nextConfig = {
   images: {
     domains: ['images.unsplash.com', 'via.placeholder.com'],
   },
+  experimental: {
+    serverComponentsExternalPackages: ['pdfkit', 'xlsx'],
+  },
   async rewrites() {
     const apiTarget = process.env.INTERNAL_API_URL || process.env.API_URL;
     // When no external API URL is configured (e.g. standalone Vercel deployment),
