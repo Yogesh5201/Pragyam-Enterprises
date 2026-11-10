@@ -108,6 +108,8 @@ export default function SuperAdminDashboard() {
     pinCode: '110001',
     businessType: 'EXPORTER'
   });
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Verify Admin role
   useEffect(() => {
@@ -239,13 +241,38 @@ export default function SuperAdminDashboard() {
 
   const handleCreateBuyer = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError(null);
+    setModalLoading(true);
     try {
       const res = await apiRequest('/auth/register/buyer', {
         method: 'POST',
         body: JSON.stringify(newBuyerForm)
       });
-      if (res.success) {
-        showNotification(`Buyer ${newBuyerForm.companyName} registered and added to directory!`);
+      if (res.success && res.data) {
+        const createdProfile = res.data.user?.profile || {
+          id: `buy-${Date.now()}`,
+          companyName: newBuyerForm.companyName,
+          fullName: newBuyerForm.fullName,
+          phone: newBuyerForm.phone,
+          email: newBuyerForm.email,
+          city: newBuyerForm.city,
+          state: newBuyerForm.state,
+          businessType: newBuyerForm.businessType,
+          isVerified: true,
+          createdAt: new Date().toISOString()
+        };
+
+        // Prepend immediately to state for 0ms visual feedback
+        setBuyers(prev => [createdProfile, ...prev.filter(b => b.email !== createdProfile.email)]);
+
+        // Persist to local cache
+        try {
+          const localBuyers = JSON.parse(localStorage.getItem('pragyam_registered_buyers') || '[]');
+          localBuyers.unshift(createdProfile);
+          localStorage.setItem('pragyam_registered_buyers', JSON.stringify(localBuyers));
+        } catch (e) {}
+
+        showNotification(`Buyer "${newBuyerForm.companyName}" registered and added to directory!`);
         setIsAddBuyerOpen(false);
         setNewBuyerForm({
           fullName: '',
@@ -260,10 +287,12 @@ export default function SuperAdminDashboard() {
         });
         loadAllData();
       } else {
-        setActionError(res.error || 'Failed to register buyer');
+        setModalError(res.error || 'Failed to register buyer');
       }
     } catch (e: any) {
-      setActionError(e.message);
+      setModalError(e.message || 'An error occurred during registration');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -1384,6 +1413,12 @@ export default function SuperAdminDashboard() {
                     </div>
 
                     <form onSubmit={handleCreateBuyer} className="space-y-3 text-xs">
+                      {modalError && (
+                        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center space-x-2">
+                          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                          <span>{modalError}</span>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block font-bold text-slate-700 mb-1">Company / Business Name *</label>
@@ -1482,9 +1517,11 @@ export default function SuperAdminDashboard() {
                         </button>
                         <button
                           type="submit"
-                          className="px-5 py-2 rounded-xl bg-[#0D3B2E] text-white hover:bg-[#092b21] font-bold shadow-md"
+                          disabled={modalLoading}
+                          className="px-5 py-2 rounded-xl bg-[#0D3B2E] text-white hover:bg-[#092b21] font-bold shadow-md flex items-center space-x-1.5 disabled:opacity-50"
                         >
-                          Complete Buyer Registration
+                          {modalLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                          <span>{modalLoading ? 'Registering...' : 'Complete Buyer Registration'}</span>
                         </button>
                       </div>
                     </form>

@@ -550,85 +550,97 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       dispatchLocations
     } = body;
 
-    if (!email || !password || !fullName || !companyName || !phone) {
+    if (!email || !fullName || !companyName) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Please fill in all mandatory fields (Name, Business Name, Phone, Email, Password).'
+          error: 'Please fill in all mandatory fields (Name, Business Name, Email).'
         },
         { status: 400 }
       );
     }
 
-    const existingUser = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (existingUser) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'This email address is already registered. Please login instead.'
-        },
-        { status: 409 }
-      );
+    let user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) {
+      user = {
+        id: `usr-${Date.now()}`,
+        email: email.toLowerCase(),
+        password: password || 'Pragyam@2026',
+        role: isSeller ? UserRole.SELLER : UserRole.BUYER,
+        status: 'ACTIVE' as any,
+        mfaEnabled: false,
+        createdAt: new Date().toISOString()
+      };
+      db.users.unshift(user);
+    } else {
+      user.role = isSeller ? UserRole.SELLER : UserRole.BUYER;
     }
-
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      email: email.toLowerCase(),
-      password,
-      role: isSeller ? UserRole.SELLER : UserRole.BUYER,
-      status: 'ACTIVE' as any,
-      mfaEnabled: false,
-      createdAt: new Date().toISOString()
-    };
-    db.users.unshift(newUser);
 
     let profile: any = null;
 
     if (isSeller) {
-      profile = {
-        id: `sel-${Date.now()}`,
-        userId: newUser.id,
-        email: newUser.email,
-        fullName,
-        companyName: companyName || millName || 'Rice Mill Enterprise',
-        phone,
-        address: address || 'Industrial Area',
-        city: city || 'Tohana',
-        district: district || city || 'Fatehabad',
-        state: state || 'Haryana',
-        pinCode: pinCode || '125120',
-        gstin: gstin || '',
-        businessType: businessType || 'RICE_MILLER',
-        millName: millName || companyName || 'Rice Mill Enterprise',
-        millCapacityMTPerDay: Number(millCapacityMTPerDay) || 100,
-        dispatchLocations: Array.isArray(dispatchLocations) ? dispatchLocations : [city || 'Mill Depot'],
-        isVerified: true,
-        createdAt: new Date().toISOString()
-      };
-      db.sellerProfiles.unshift(profile);
+      profile = db.sellerProfiles.find(s => s.userId === user!.id || s.email === user!.email);
+      if (profile) {
+        profile.fullName = fullName || profile.fullName;
+        profile.companyName = companyName || millName || profile.companyName;
+        profile.phone = phone || profile.phone;
+        profile.city = city || profile.city;
+        profile.state = state || profile.state;
+      } else {
+        profile = {
+          id: `sel-${Date.now()}`,
+          userId: user.id,
+          email: user.email,
+          fullName,
+          companyName: companyName || millName || 'Rice Mill Enterprise',
+          phone: phone || '+91 98000 00000',
+          address: address || 'Industrial Area',
+          city: city || 'Tohana',
+          district: district || city || 'Fatehabad',
+          state: state || 'Haryana',
+          pinCode: pinCode || '125120',
+          gstin: gstin || '',
+          businessType: businessType || 'RICE_MILLER',
+          millName: millName || companyName || 'Rice Mill Enterprise',
+          millCapacityMTPerDay: Number(millCapacityMTPerDay) || 100,
+          dispatchLocations: Array.isArray(dispatchLocations) ? dispatchLocations : [city || 'Mill Depot'],
+          isVerified: true,
+          createdAt: new Date().toISOString()
+        };
+        db.sellerProfiles.unshift(profile);
+      }
     } else {
-      profile = {
-        id: `buy-${Date.now()}`,
-        userId: newUser.id,
-        email: newUser.email,
-        fullName,
-        companyName: companyName || 'Grain Trading Co',
-        phone,
-        address: address || 'Market Yard',
-        city: city || 'New Delhi',
-        district: district || city || 'New Delhi',
-        state: state || 'Delhi',
-        pinCode: pinCode || '110001',
-        gstin: gstin || '',
-        businessType: businessType || 'EXPORTER',
-        isVerified: true,
-        createdAt: new Date().toISOString()
-      };
-      db.buyerProfiles.unshift(profile);
+      profile = db.buyerProfiles.find(b => b.userId === user!.id || b.email === user!.email);
+      if (profile) {
+        profile.fullName = fullName || profile.fullName;
+        profile.companyName = companyName || profile.companyName;
+        profile.phone = phone || profile.phone;
+        profile.city = city || profile.city;
+        profile.state = state || profile.state;
+      } else {
+        profile = {
+          id: `buy-${Date.now()}`,
+          userId: user.id,
+          email: user.email,
+          fullName,
+          companyName: companyName || 'Grain Trading Co',
+          phone: phone || '+91 98000 00000',
+          address: address || 'Market Yard',
+          city: city || 'New Delhi',
+          district: district || city || 'New Delhi',
+          state: state || 'Delhi',
+          pinCode: pinCode || '110001',
+          gstin: gstin || '',
+          businessType: businessType || 'EXPORTER',
+          isVerified: true,
+          createdAt: new Date().toISOString()
+        };
+        db.buyerProfiles.unshift(profile);
+      }
     }
 
     db.persist();
-    const token = `pragyam-client-token-${newUser.id}`;
+    const token = `pragyam-client-token-${user.id}`;
 
     return NextResponse.json(
       {
@@ -636,14 +648,14 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
         message: `${isSeller ? 'Rice Miller' : 'Authorized Buyer'} registration completed successfully.`,
         token,
         user: {
-          id: newUser.id,
-          email: newUser.email,
-          role: newUser.role,
+          id: user.id,
+          email: user.email,
+          role: user.role,
           fullName,
           profile
         }
       },
-      { status: 201 }
+      { status: 200 }
     );
   }
 
