@@ -27,7 +27,8 @@ import {
   ChevronRight,
   History,
   ShieldAlert,
-  ClipboardList
+  ClipboardList,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/apiClient';
