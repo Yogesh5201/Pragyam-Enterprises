@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '../../../server/mockDb';
+import { supabaseDb } from '../../../server/supabaseService';
 import { UserRole, ListingStatus, PurchaseOrderStatus, TransportStatus, PaymentStatus } from '@pragyam/types';
 import {
   generateExcelWorkbook,
@@ -105,23 +106,7 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 3. Admin Inventory (Unredacted)
   if (path === 'inventory/admin/all') {
-    const fullListings = db.listings.map(l => {
-      const seller = db.sellerProfiles.find(s => s.id === l.sellerId) || db.sellerProfiles[0];
-      return {
-        ...l,
-        sellerCompanyName: seller?.companyName || seller?.millName || 'BANSAL TRADERS',
-        sellerFullName: seller?.fullName || 'Satyanarayan',
-        sellerPhone: seller?.phone || '+91 9416365869',
-        sellerActualInfo: {
-          sellerId: seller?.id,
-          sellerName: seller?.fullName,
-          millName: seller?.millName,
-          phone: seller?.phone,
-          gstin: seller?.gstin,
-          actualMillLocation: l.millLocation
-        }
-      };
-    });
+    const fullListings = await supabaseDb.getListings();
     return NextResponse.json({ success: true, listings: fullListings });
   }
 
@@ -144,30 +129,13 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 5. Requirements
   if (path === 'requirements/my-requirements' || path === 'requirements/admin/all' || path === 'requirements') {
-    const enriched = db.requirements.map(req => {
-      const buyer = db.buyerProfiles.find(b => b.id === req.buyerId) || db.buyerProfiles[0];
-      return {
-        ...req,
-        buyerCompanyName: buyer?.companyName || 'haruana',
-        buyerFullName: buyer?.fullName || 'BANAN',
-        buyerPhone: buyer?.phone || '+91 9896346337',
-        buyerCity: buyer?.city || 'TONA',
-        buyerState: buyer?.state || 'Haryana',
-      };
-    });
+    const enriched = await supabaseDb.getRequirements();
     return NextResponse.json({ success: true, requirements: enriched });
   }
 
   // 6. Enquiries
   if (path === 'enquiries/my-enquiries' || path === 'enquiries') {
-    const enriched = db.enquiries.map(enq => {
-      const listing = db.listings.find(l => l.id === enq.listingId || l.anonymousCode === enq.anonymousListingCode);
-      return {
-        ...enq,
-        variety: (enq as any).variety || listing?.variety || '1121 Golden Sella Basmati',
-        category: (enq as any).category || listing?.category || 'GOLDEN_SELLA_RICE',
-      };
-    });
+    const enriched = await supabaseDb.getEnquiries();
     return NextResponse.json({ success: true, enquiries: enriched });
   }
 
@@ -237,12 +205,7 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
     path === 'purchase-orders/buyer/my-orders' ||
     path === 'purchase-orders/seller/my-orders'
   ) {
-    const purchaseOrders = db.purchaseOrders.map(po => ({
-      ...po,
-      orderDate: (po as any).orderDate || po.createdAt,
-      brokerageAmount: (po as any).brokerageAmount || (po as any).totalBrokerageAmount || 74000,
-      dispatchLocation: (po as any).dispatchLocation || 'Taraori Mill Depot, Karnal'
-    }));
+    const purchaseOrders = await supabaseDb.getPurchaseOrders();
     return NextResponse.json({ success: true, purchaseOrders });
   }
 
@@ -355,23 +318,11 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 16. Users (Admin directory)
   if (path === 'users/admin/buyers') {
-    const buyers = db.buyerProfiles.map(b => {
-      const u = db.users.find(user => user.id === b.userId);
-      return {
-        ...b,
-        email: u?.email || 'buyer@pragyam.com'
-      };
-    });
+    const buyers = await supabaseDb.getBuyers();
     return NextResponse.json({ success: true, buyers });
   }
   if (path === 'users/admin/sellers') {
-    const sellers = db.sellerProfiles.map(s => {
-      const u = db.users.find(user => user.id === s.userId);
-      return {
-        ...s,
-        email: u?.email || 'seller@pragyam.com'
-      };
-    });
+    const sellers = await supabaseDb.getSellers();
     return NextResponse.json({ success: true, sellers });
   }
 
@@ -560,86 +511,11 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       );
     }
 
-    let user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) {
-      user = {
-        id: `usr-${Date.now()}`,
-        email: email.toLowerCase(),
-        password: password || 'Pragyam@2026',
-        role: isSeller ? UserRole.SELLER : UserRole.BUYER,
-        status: 'ACTIVE' as any,
-        mfaEnabled: false,
-        createdAt: new Date().toISOString()
-      };
-      db.users.unshift(user);
-    } else {
-      user.role = isSeller ? UserRole.SELLER : UserRole.BUYER;
-    }
+    const regResult = isSeller
+      ? await supabaseDb.registerSeller(body)
+      : await supabaseDb.registerBuyer(body);
+    const { user, profile } = regResult;
 
-    let profile: any = null;
-
-    if (isSeller) {
-      profile = db.sellerProfiles.find(s => s.userId === user!.id || s.email === user!.email);
-      if (profile) {
-        profile.fullName = fullName || profile.fullName;
-        profile.companyName = companyName || millName || profile.companyName;
-        profile.phone = phone || profile.phone;
-        profile.city = city || profile.city;
-        profile.state = state || profile.state;
-      } else {
-        profile = {
-          id: `sel-${Date.now()}`,
-          userId: user.id,
-          email: user.email,
-          fullName,
-          companyName: companyName || millName || 'Rice Mill Enterprise',
-          phone: phone || '+91 98000 00000',
-          address: address || 'Industrial Area',
-          city: city || 'Tohana',
-          district: district || city || 'Fatehabad',
-          state: state || 'Haryana',
-          pinCode: pinCode || '125120',
-          gstin: gstin || '',
-          businessType: businessType || 'RICE_MILLER',
-          millName: millName || companyName || 'Rice Mill Enterprise',
-          millCapacityMTPerDay: Number(millCapacityMTPerDay) || 100,
-          dispatchLocations: Array.isArray(dispatchLocations) ? dispatchLocations : [city || 'Mill Depot'],
-          isVerified: true,
-          createdAt: new Date().toISOString()
-        };
-        db.sellerProfiles.unshift(profile);
-      }
-    } else {
-      profile = db.buyerProfiles.find(b => b.userId === user!.id || b.email === user!.email);
-      if (profile) {
-        profile.fullName = fullName || profile.fullName;
-        profile.companyName = companyName || profile.companyName;
-        profile.phone = phone || profile.phone;
-        profile.city = city || profile.city;
-        profile.state = state || profile.state;
-      } else {
-        profile = {
-          id: `buy-${Date.now()}`,
-          userId: user.id,
-          email: user.email,
-          fullName,
-          companyName: companyName || 'Grain Trading Co',
-          phone: phone || '+91 98000 00000',
-          address: address || 'Market Yard',
-          city: city || 'New Delhi',
-          district: district || city || 'New Delhi',
-          state: state || 'Delhi',
-          pinCode: pinCode || '110001',
-          gstin: gstin || '',
-          businessType: businessType || 'EXPORTER',
-          isVerified: true,
-          createdAt: new Date().toISOString()
-        };
-        db.buyerProfiles.unshift(profile);
-      }
-    }
-
-    db.persist();
     const token = `pragyam-client-token-${user.id}`;
 
     return NextResponse.json(
@@ -651,7 +527,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
           id: user.id,
           email: user.email,
           role: user.role,
-          fullName,
+          fullName: profile.fullName || fullName,
           profile
         }
       },
@@ -729,6 +605,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
     };
     db.requirements.unshift(newReq);
     db.persist();
+    await supabaseDb.addRequirement(newReq);
     return NextResponse.json({ success: true, requirement: newReq });
   }
 
@@ -781,6 +658,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
     };
     db.listings.unshift(newListing);
     db.persist();
+    await supabaseDb.addListing(newListing);
     return NextResponse.json({ success: true, listing: sanitizeListing(newListing) });
   }
 
