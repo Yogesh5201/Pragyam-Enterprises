@@ -71,8 +71,42 @@ function BuyerDashboardContent() {
         apiRequest('/transport/admin/all'),
       ]);
 
-      if (enqRes.success && enqRes.data) setEnquiries(enqRes.data.enquiries || []);
-      if (reqRes.success && reqRes.data) setRequirements(reqRes.data.requirements || []);
+      if (enqRes.success && enqRes.data) {
+        const incomingEnqs = enqRes.data.enquiries || [];
+        setEnquiries(prev => {
+          const merged = [...incomingEnqs];
+          for (const p of prev) {
+            const exists = merged.some((m: any) => m.id === p.id || m.enquiryCode === p.enquiryCode);
+            if (!exists) merged.unshift(p);
+          }
+          try {
+            const localEnqs = JSON.parse(localStorage.getItem('pragyam_registered_enquiries') || '[]');
+            for (const le of localEnqs) {
+              const exists = merged.some((m: any) => m.id === le.id || m.enquiryCode === le.enquiryCode);
+              if (!exists) merged.unshift(le);
+            }
+          } catch (e) {}
+          return merged;
+        });
+      }
+      if (reqRes.success && reqRes.data) {
+        const incomingReqs = reqRes.data.requirements || [];
+        setRequirements(prev => {
+          const merged = [...incomingReqs];
+          for (const p of prev) {
+            const exists = merged.some((m: any) => m.id === p.id || m.requirementCode === p.requirementCode);
+            if (!exists) merged.unshift(p);
+          }
+          try {
+            const localReqs = JSON.parse(localStorage.getItem('pragyam_registered_requirements') || '[]');
+            for (const lr of localReqs) {
+              const exists = merged.some((m: any) => m.id === lr.id || m.requirementCode === lr.requirementCode);
+              if (!exists) merged.unshift(lr);
+            }
+          } catch (e) {}
+          return merged;
+        });
+      }
       if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders || []);
       if (payRes.success && payRes.data) setPayments(payRes.data.payments || []);
       if (trpRes.success && trpRes.data) setTransports(trpRes.data.transportRecords || []);

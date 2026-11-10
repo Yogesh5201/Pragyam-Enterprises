@@ -71,6 +71,13 @@ export function AddStockModal({ isOpen, onClose, onSuccess }: AddStockModalProps
       });
 
       if (res.success) {
+        if (res.data?.listing) {
+          try {
+            const localListings = JSON.parse(localStorage.getItem('pragyam_registered_listings') || '[]');
+            localListings.unshift(res.data.listing);
+            localStorage.setItem('pragyam_registered_listings', JSON.stringify(localListings));
+          } catch (e) {}
+        }
         setSubmitted(true);
         if (onSuccess) onSuccess();
       } else {

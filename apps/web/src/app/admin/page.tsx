@@ -129,17 +129,17 @@ export default function SuperAdminDashboard() {
     }
   }, [activeTab]);
 
-  // Periodic background refresh every 12 seconds to capture live user registrations
+  // Periodic background refresh every 15 seconds to capture live user registrations
   useEffect(() => {
     if (!isAuthenticated || role !== UserRole.SUPER_ADMIN) return;
     const interval = setInterval(() => {
-      loadAllData();
-    }, 12000);
+      loadAllData(true);
+    }, 15000);
     return () => clearInterval(interval);
   }, [isAuthenticated, role]);
 
-  const loadAllData = async () => {
-    setLoading(true);
+  const loadAllData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const [
         metricsRes,
@@ -173,7 +173,27 @@ export default function SuperAdminDashboard() {
         setMetrics(metricsRes.data.metrics || metricsRes.data);
       }
       if (listingsRes.success && listingsRes.data) {
-        setListings(listingsRes.data.listings || []);
+        const incomingListings = listingsRes.data.listings || [];
+        setListings(prev => {
+          const merged = [...incomingListings];
+          for (const p of prev) {
+            const exists = merged.some((m: any) => m.id === p.id || m.anonymousCode === p.anonymousCode);
+            if (!exists) {
+              merged.unshift(p);
+            }
+          }
+          try {
+            const localListings = JSON.parse(localStorage.getItem('pragyam_registered_listings') || '[]');
+            for (const ll of localListings) {
+              const exists = merged.some((m: any) => m.id === ll.id || m.anonymousCode === ll.anonymousCode);
+              if (!exists) {
+                merged.unshift(ll);
+              }
+            }
+            localStorage.setItem('pragyam_registered_listings', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
       }
       if (matchingRes.success && matchingRes.data) {
         setMatchingResults(matchingRes.data.recommendations || []);
@@ -191,38 +211,96 @@ export default function SuperAdminDashboard() {
         setInvoices(invoicesRes.data.invoices || []);
       }
       if (buyersRes.success && buyersRes.data) {
-        let serverBuyers = [...(buyersRes.data.buyers || [])];
-        try {
-          const localBuyers = JSON.parse(localStorage.getItem('pragyam_registered_buyers') || '[]');
-          for (const lb of localBuyers) {
-            if (!serverBuyers.some((sb: any) => sb.id === lb.id || (sb.email && lb.email && sb.email.toLowerCase() === lb.email.toLowerCase()))) {
-              serverBuyers.unshift(lb);
-              apiRequest('/users/admin/sync-buyer', {
-                method: 'POST',
-                body: JSON.stringify({ buyer: lb })
-              }).catch(() => {});
+        const incomingBuyers = buyersRes.data.buyers || [];
+        setBuyers(prev => {
+          const merged = [...incomingBuyers];
+          for (const p of prev) {
+            const exists = merged.some(
+              (m: any) =>
+                m.id === p.id ||
+                (m.email && p.email && m.email.toLowerCase() === p.email.toLowerCase()) ||
+                (m.companyName && p.companyName && m.companyName.toLowerCase() === p.companyName.toLowerCase())
+            );
+            if (!exists) {
+              merged.unshift(p);
             }
           }
-        } catch (e) {}
-        setBuyers(serverBuyers);
+          try {
+            const localBuyers = JSON.parse(localStorage.getItem('pragyam_registered_buyers') || '[]');
+            for (const lb of localBuyers) {
+              const exists = merged.some(
+                (m: any) =>
+                  m.id === lb.id ||
+                  (m.email && lb.email && m.email.toLowerCase() === lb.email.toLowerCase()) ||
+                  (m.companyName && lb.companyName && m.companyName.toLowerCase() === lb.companyName.toLowerCase())
+              );
+              if (!exists) {
+                merged.unshift(lb);
+              }
+            }
+            localStorage.setItem('pragyam_registered_buyers', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
       }
       if (sellersRes.success && sellersRes.data) {
-        let serverSellers = [...(sellersRes.data.sellers || [])];
-        try {
-          const localSellers = JSON.parse(localStorage.getItem('pragyam_registered_sellers') || '[]');
-          for (const ls of localSellers) {
-            if (!serverSellers.some((ss: any) => ss.id === ls.id || (ss.email && ls.email && ss.email.toLowerCase() === ls.email.toLowerCase()))) {
-              serverSellers.unshift(ls);
+        const incomingSellers = sellersRes.data.sellers || [];
+        setSellers(prev => {
+          const merged = [...incomingSellers];
+          for (const p of prev) {
+            const exists = merged.some(
+              (m: any) =>
+                m.id === p.id ||
+                (m.email && p.email && m.email.toLowerCase() === p.email.toLowerCase()) ||
+                (m.companyName && p.companyName && m.companyName.toLowerCase() === p.companyName.toLowerCase())
+            );
+            if (!exists) {
+              merged.unshift(p);
             }
           }
-        } catch (e) {}
-        setSellers(serverSellers);
+          try {
+            const localSellers = JSON.parse(localStorage.getItem('pragyam_registered_sellers') || '[]');
+            for (const ls of localSellers) {
+              const exists = merged.some(
+                (m: any) =>
+                  m.id === ls.id ||
+                  (m.email && ls.email && m.email.toLowerCase() === ls.email.toLowerCase()) ||
+                  (m.companyName && ls.companyName && m.companyName.toLowerCase() === ls.companyName.toLowerCase())
+              );
+              if (!exists) {
+                merged.unshift(ls);
+              }
+            }
+            localStorage.setItem('pragyam_registered_sellers', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
       }
       if (auditRes.success && auditRes.data) {
         setAuditLogs(auditRes.data.logs || auditRes.data.auditLogs || []);
       }
       if (reqRes.success && reqRes.data) {
-        setRequirements(reqRes.data.requirements || []);
+        const incomingReqs = reqRes.data.requirements || [];
+        setRequirements(prev => {
+          const merged = [...incomingReqs];
+          for (const p of prev) {
+            const exists = merged.some((m: any) => m.id === p.id || m.requirementCode === p.requirementCode);
+            if (!exists) {
+              merged.unshift(p);
+            }
+          }
+          try {
+            const localReqs = JSON.parse(localStorage.getItem('pragyam_registered_requirements') || '[]');
+            for (const lr of localReqs) {
+              const exists = merged.some((m: any) => m.id === lr.id || m.requirementCode === lr.requirementCode);
+              if (!exists) {
+                merged.unshift(lr);
+              }
+            }
+            localStorage.setItem('pragyam_registered_requirements', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
       }
       if (trpRes.success && trpRes.data) {
         setTransportRecords(trpRes.data.transportRecords || []);
@@ -230,7 +308,7 @@ export default function SuperAdminDashboard() {
     } catch (err) {
       console.error('Error fetching admin data', err);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 

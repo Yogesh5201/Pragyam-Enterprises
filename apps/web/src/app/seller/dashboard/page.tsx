@@ -70,7 +70,24 @@ function SellerDashboardContent() {
         apiRequest('/invoices/admin/all'),
       ]);
 
-      if (listRes.success && listRes.data) setMyListings(listRes.data.listings || []);
+      if (listRes.success && listRes.data) {
+        const incoming = listRes.data.listings || [];
+        setMyListings(prev => {
+          const merged = [...incoming];
+          for (const p of prev) {
+            const exists = merged.some((m: any) => m.id === p.id || m.anonymousCode === p.anonymousCode);
+            if (!exists) merged.unshift(p);
+          }
+          try {
+            const localListings = JSON.parse(localStorage.getItem('pragyam_registered_listings') || '[]');
+            for (const ll of localListings) {
+              const exists = merged.some((m: any) => m.id === ll.id || m.anonymousCode === ll.anonymousCode);
+              if (!exists) merged.unshift(ll);
+            }
+          } catch (e) {}
+          return merged;
+        });
+      }
       if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders || []);
       if (payRes.success && payRes.data) setPayments(payRes.data.payments || []);
       if (trpRes.success && trpRes.data) setTransports(trpRes.data.transportRecords || []);

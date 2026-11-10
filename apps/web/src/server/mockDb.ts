@@ -283,8 +283,32 @@ class ServerlessDataStore {
       isVerified: true
     };
 
-    this.users.push(buyer1User, buyer2User);
-    this.buyerProfiles.push(buyer1Profile, buyer2Profile);
+    const buyer3User: DbUser = {
+      id: 'usr-buyer-bansal-prop',
+      email: 'nikhilbansal9896@gmail.com',
+      password: 'Pragyam@2026',
+      role: UserRole.BUYER,
+      status: UserStatus.ACTIVE,
+      mfaEnabled: false,
+      createdAt: '2026-02-18T00:00:00.000Z'
+    };
+    const buyer3Profile: DbBuyerProfile = {
+      id: 'buy-prof-bansal-tradesr',
+      userId: buyer3User.id,
+      fullName: 'Satyanarayan',
+      companyName: 'BASNAL TRADESR',
+      phone: '+91 9416365869',
+      address: 'New Anaj Mandi',
+      city: 'Tohana',
+      district: 'Fatehabad',
+      state: 'Haryana',
+      pinCode: '125120',
+      businessType: BusinessType.WHOLESALER,
+      isVerified: true
+    };
+
+    this.users.push(buyer1User, buyer2User, buyer3User);
+    this.buyerProfiles.push(buyer3Profile, buyer2Profile, buyer1Profile);
 
     // 4. Initial Anonymous Listings
     this.listings.push(
@@ -799,19 +823,31 @@ class ServerlessDataStore {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
           if (Array.isArray(parsed.users)) {
-            const userMap = new Map(this.users.map(u => [u.id, u]));
-            parsed.users.forEach((u: any) => userMap.set(u.id, u));
-            this.users = Array.from(userMap.values());
+            const existingIds = new Set(this.users.map(u => u.id));
+            for (const u of parsed.users) {
+              if (!existingIds.has(u.id)) {
+                this.users.unshift(u);
+                existingIds.add(u.id);
+              }
+            }
           }
           if (Array.isArray(parsed.buyerProfiles)) {
-            const buyerMap = new Map(this.buyerProfiles.map(b => [b.id, b]));
-            parsed.buyerProfiles.forEach((b: any) => buyerMap.set(b.id, b));
-            this.buyerProfiles = Array.from(buyerMap.values());
+            const existingIds = new Set(this.buyerProfiles.map(b => b.id));
+            for (const b of parsed.buyerProfiles) {
+              if (!existingIds.has(b.id)) {
+                this.buyerProfiles.unshift(b);
+                existingIds.add(b.id);
+              }
+            }
           }
           if (Array.isArray(parsed.sellerProfiles)) {
-            const sellerMap = new Map(this.sellerProfiles.map(s => [s.id, s]));
-            parsed.sellerProfiles.forEach((s: any) => sellerMap.set(s.id, s));
-            this.sellerProfiles = Array.from(sellerMap.values());
+            const existingIds = new Set(this.sellerProfiles.map(s => s.id));
+            for (const s of parsed.sellerProfiles) {
+              if (!existingIds.has(s.id)) {
+                this.sellerProfiles.unshift(s);
+                existingIds.add(s.id);
+              }
+            }
           }
           if (Array.isArray(parsed.listings)) {
             const listingMap = new Map(this.listings.map(l => [l.id, l]));

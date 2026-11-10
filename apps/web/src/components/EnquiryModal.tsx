@@ -46,6 +46,13 @@ export function EnquiryModal({ listing, isOpen, onClose, onSuccess }: EnquiryMod
       });
 
       if (res.success) {
+        if (res.data?.enquiry) {
+          try {
+            const localEnqs = JSON.parse(localStorage.getItem('pragyam_registered_enquiries') || '[]');
+            localEnqs.unshift(res.data.enquiry);
+            localStorage.setItem('pragyam_registered_enquiries', JSON.stringify(localEnqs));
+          } catch (e) {}
+        }
         setSubmitted(true);
         if (onSuccess) onSuccess();
       } else {

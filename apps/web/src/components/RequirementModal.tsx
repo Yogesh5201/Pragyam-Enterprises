@@ -71,6 +71,13 @@ export function RequirementModal({ isOpen, onClose, onSuccess }: RequirementModa
       });
 
       if (res.success) {
+        if (res.data?.requirement) {
+          try {
+            const localReqs = JSON.parse(localStorage.getItem('pragyam_registered_requirements') || '[]');
+            localReqs.unshift(res.data.requirement);
+            localStorage.setItem('pragyam_registered_requirements', JSON.stringify(localReqs));
+          } catch (e) {}
+        }
         setSubmitted(true);
         if (onSuccess) onSuccess();
       } else {
