@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import PDFDocument from 'pdfkit';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from './mockDb';
 
 const FIRM_INFO = {
@@ -15,6 +15,14 @@ const FIRM_INFO = {
   accountHolder: 'Nikhil Bansal / Pragyam Enterprises'
 };
 
+const COLOR_EMERALD = rgb(0.05, 0.23, 0.18);
+const COLOR_GOLD = rgb(0.77, 0.63, 0.35);
+const COLOR_DARK = rgb(0.12, 0.16, 0.23);
+const COLOR_MUTED = rgb(0.39, 0.45, 0.55);
+const COLOR_LIGHT_BG = rgb(0.95, 0.96, 0.98);
+const COLOR_BORDER = rgb(0.80, 0.84, 0.88);
+const COLOR_WHITE = rgb(1, 1, 1);
+
 /**
  * Generates genuine native Excel (.xlsx) workbooks for any admin dataset
  */
@@ -28,7 +36,7 @@ export function generateExcelWorkbook(dataset: string): Buffer {
       sheetName = 'Purchase_Orders';
       sheetData = db.purchaseOrders.map(po => ({
         'PO Number': po.poNumber,
-        'Order Date': new Date(po.createdAt || po.orderDate || Date.now()).toLocaleDateString('en-IN'),
+        'Order Date': new Date(po.createdAt || (po as any).orderDate || Date.now()).toLocaleDateString('en-IN'),
         'Rice Commodity': po.riceVariety,
         'Category': po.riceCategory,
         'Quantity (MT)': po.quantityMT,
@@ -157,10 +165,8 @@ export function generateExcelWorkbook(dataset: string): Buffer {
     }
   }
 
-  // Create worksheet from JSON
   const ws = XLSX.utils.json_to_sheet(sheetData);
 
-  // Auto-fit column widths based on maximum string length
   if (sheetData.length > 0) {
     const colKeys = Object.keys(sheetData[0]);
     ws['!cols'] = colKeys.map(key => {
@@ -181,223 +187,290 @@ export function generateExcelWorkbook(dataset: string): Buffer {
 }
 
 /**
- * Generates an official, comprehensive Purchase Order PDF
+ * Generates an official, comprehensive Purchase Order PDF via self-contained pdf-lib
  */
-export function generatePurchaseOrderPdfBuffer(po: any, userRole: string = 'ADMIN'): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 40, size: 'A4' });
-      const buffers: Buffer[] = [];
+export async function generatePurchaseOrderPdfBuffer(po: any, userRole: string = 'ADMIN'): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const page = doc.addPage([595.28, 841.89]); // A4 portrait
 
-      doc.on('data', chunk => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', err => reject(err));
-
-      // 1. Header & Brand Identity
-      doc.rect(40, 36, 515, 4).fill('#0D3B2E');
-
-      doc.fillColor('#0D3B2E').fontSize(20).text(FIRM_INFO.name, 40, 48, { bold: true } as any);
-      doc.fillColor('#C5A059').fontSize(10).text(FIRM_INFO.subtitle, 40, 72);
-      doc.fillColor('#64748B').fontSize(8.5).text(FIRM_INFO.address, 40, 87);
-      doc.text(`PAN: ${FIRM_INFO.pan} | Contact: ${FIRM_INFO.phone} | Email: ${FIRM_INFO.email}`, 40, 99);
-
-      doc.strokeColor('#CBD5E1').lineWidth(1).moveTo(40, 115).lineTo(555, 115).stroke();
-
-      // 2. PO Banner
-      doc.rect(40, 125, 515, 28).fill('#0D3B2E');
-      doc.fillColor('#FFFFFF').fontSize(12).text(`OFFICIAL PURCHASE ORDER: ${po.poNumber || 'PO-2026-9042'}`, 50, 133, { bold: true } as any);
-      doc.fontSize(9.5).text(`Status: ${po.status || 'PO_ISSUED'}`, 430, 133);
-
-      // 3. Meta Dates
-      const orderDateStr = new Date(po.createdAt || po.orderDate || Date.now()).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-      });
-      const deliveryDateStr = new Date(po.deliveryDeadline || po.expectedDispatchDate || Date.now() + 864000000).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-      });
-
-      doc.fillColor('#1E293B').fontSize(9);
-      doc.text(`Order Date: ${orderDateStr}`, 40, 162);
-      doc.text(`Delivery Deadline: ${deliveryDateStr}`, 320, 162);
-
-      // 4. Two-Column Trade Box
-      doc.rect(40, 180, 250, 75).strokeColor('#CBD5E1').stroke();
-      doc.rect(305, 180, 250, 75).strokeColor('#CBD5E1').stroke();
-
-      doc.fillColor('#0D3B2E').fontSize(9).text('INTERMEDIARY BROKER:', 48, 188, { bold: true } as any);
-      doc.fillColor('#334155').fontSize(8.5).text(FIRM_INFO.name, 48, 202);
-      doc.text('New Anaj Mandi Central Desk, Tohana', 48, 214);
-      doc.text(`Brokerage Terms: ₹${po.brokeragePerMT || 100}/MT (${po.brokeragePayee || 'MUTUAL_SPLIT'})`, 48, 226);
-
-      doc.fillColor('#0D3B2E').fontSize(9).text('PURCHASER / BUYER (CONFIDENTIAL):', 313, 188, { bold: true } as any);
-      doc.fillColor('#334155').fontSize(8.5).text(po.buyerCompanyName || 'Royal Feast Global Exporters Pvt Ltd', 313, 202);
-      doc.text(`Delivery Location: ${po.deliveryLocation || 'Delhi Trading Hub'}`, 313, 214);
-      doc.text('Contract Reference: PRG-AGRI-2026', 313, 226);
-
-      // 5. Commodity Table Header
-      doc.rect(40, 265, 515, 22).fill('#F1F5F9');
-      doc.fillColor('#0F172A').fontSize(8.5).text('COMMODITY / VARIETY', 48, 272, { bold: true } as any);
-      doc.text('CATEGORY', 180, 272, { bold: true } as any);
-      doc.text('QUANTITY', 280, 272, { bold: true } as any);
-      doc.text('RATE / QTL', 370, 272, { bold: true } as any);
-      doc.text('TOTAL VALUE (INR)', 450, 272, { bold: true } as any);
-
-      // 6. Commodity Row
-      const qtyMT = Number(po.quantityMT) || 100;
-      const rateQtl = Number(po.agreedRatePerQuintal) || 8150;
-      const totalVal = po.totalGoodsValue || qtyMT * rateQtl * 10;
-
-      doc.fillColor('#1E293B').fontSize(8.5);
-      doc.text(po.riceVariety || '1121 Golden Sella Basmati', 48, 295);
-      doc.text(po.riceCategory || 'EXPORT_PARBOILED', 180, 295);
-      doc.text(`${qtyMT} MT (${qtyMT * 10} Qtl)`, 280, 295);
-      doc.text(`₹${rateQtl.toLocaleString('en-IN')}`, 370, 295);
-      doc.text(`₹${totalVal.toLocaleString('en-IN')}`, 450, 295);
-
-      doc.strokeColor('#CBD5E1').lineWidth(0.5).moveTo(40, 315).lineTo(555, 315).stroke();
-
-      // 7. Quality Specs Box
-      doc.rect(40, 325, 515, 70).strokeColor('#CBD5E1').stroke();
-      doc.fillColor('#0D3B2E').fontSize(9).text('MANDATORY AGMARK & TRADE QUALITY SPECIFICATIONS:', 48, 333, { bold: true } as any);
-      doc.fillColor('#475569').fontSize(8);
-
-      const q = po.qualitySpecs || {};
-      doc.text(`- Grain Length: ${q.grainLengthMm || 8.35} mm`, 48, 349);
-      doc.text(`- Whiteness (Kett): ${q.whiteness || 40.0}`, 48, 362);
-      doc.text(`- Moisture: ${q.moisturePercent || 12.0}% (Max)`, 48, 375);
-
-      doc.text(`- Broken Grain: ${q.brokenPercent || 1.0}% (Max)`, 220, 349);
-      doc.text(`- Sortex: ${q.sortex !== false ? '100% Optical Sortex Clean' : 'Standard'}`, 220, 362);
-      doc.text(`- Foreign Matter: 0.05% (Max)`, 220, 375);
-
-      doc.text(`- Crop Year: ${q.cropYear || '2025-2026'}`, 390, 349);
-      doc.text(`- Packaging: ${po.packaging || 'PP Bags 50 KG Net'}`, 390, 362);
-      doc.text(`- Damaged / Discolored: 0.5% (Max)`, 390, 375);
-
-      // 8. Commercial & Escrow Terms
-      doc.fillColor('#0D3B2E').fontSize(9.5).text('COMMERCIAL & ESCROW SETTLEMENT TERMS:', 40, 410, { bold: true } as any);
-      doc.fillColor('#334155').fontSize(8);
-      doc.text(`1. Payment Terms: ${po.paymentTerms || '20% Advance against Escrow, 80% on Dispatch Bilty issuance.'}`, 40, 424);
-      doc.text(`2. Dispatch Depot: ${po.dispatchLocation || 'Taraori Mill Depot, Karnal'}`, 40, 436);
-      doc.text(`3. Escrow Account: ${FIRM_INFO.bankName} | A/C: ${FIRM_INFO.bankAccount} | IFSC: ${FIRM_INFO.bankIfsc}`, 40, 448);
-      doc.text(`4. Intermediary Protection: Direct buyer-seller contact is prohibited. All dispatches monitored by Pragyam Desk.`, 40, 460);
-      doc.text(`5. Legal Jurisdiction: Governed by Indian Arbitration Act. Subject to Tohana / Fatehabad, Haryana jurisdiction.`, 40, 472);
-
-      // 9. Signatures Box
-      doc.strokeColor('#CBD5E1').lineWidth(0.5).moveTo(40, 500).lineTo(555, 500).stroke();
-
-      doc.fillColor('#64748B').fontSize(7.5);
-      doc.text('This is a computer-generated, digitally verified commercial purchase order issued under', 40, 515);
-      doc.text('the strict brokerage governance and intermediary trust standards of Pragyam Enterprises.', 40, 526);
-
-      doc.fillColor('#0D3B2E').fontSize(9).text('For PRAGYAM ENTERPRISES', 390, 515, { bold: true } as any);
-      doc.fillColor('#C5A059').fontSize(8).text('Nikhil Bansal (Proprietor)', 390, 528);
-      doc.fillColor('#64748B').fontSize(7.5).text('Authorized Central Desk Signatory', 390, 540);
-
-      doc.end();
-    } catch (e) {
-      reject(e);
-    }
+  // 1. Top Decorative Brand Bar
+  page.drawRectangle({
+    x: 40,
+    y: 800,
+    width: 515,
+    height: 6,
+    color: COLOR_EMERALD,
   });
+
+  // 2. Company Brand Letterhead
+  page.drawText(FIRM_INFO.name, {
+    x: 40,
+    y: 775,
+    size: 20,
+    font: fontBold,
+    color: COLOR_EMERALD,
+  });
+
+  page.drawText(FIRM_INFO.subtitle, {
+    x: 40,
+    y: 758,
+    size: 9.5,
+    font: fontBold,
+    color: COLOR_GOLD,
+  });
+
+  page.drawText(FIRM_INFO.address, {
+    x: 40,
+    y: 742,
+    size: 8.5,
+    font,
+    color: COLOR_MUTED,
+  });
+
+  page.drawText(`PAN: ${FIRM_INFO.pan}   |   Contact: ${FIRM_INFO.phone}   |   Email: ${FIRM_INFO.email}`, {
+    x: 40,
+    y: 728,
+    size: 8,
+    font,
+    color: COLOR_MUTED,
+  });
+
+  // Dividing line
+  page.drawLine({
+    start: { x: 40, y: 718 },
+    end: { x: 555, y: 718 },
+    thickness: 1,
+    color: COLOR_BORDER,
+  });
+
+  // 3. Purchase Order Banner
+  page.drawRectangle({
+    x: 40,
+    y: 678,
+    width: 515,
+    height: 30,
+    color: COLOR_EMERALD,
+  });
+
+  page.drawText(`OFFICIAL PURCHASE ORDER: ${po.poNumber || 'PO-2026-9042'}`, {
+    x: 52,
+    y: 689,
+    size: 11,
+    font: fontBold,
+    color: COLOR_WHITE,
+  });
+
+  page.drawText(`STATUS: ${po.status || 'CONFIRMED'}`, {
+    x: 420,
+    y: 689,
+    size: 9.5,
+    font: fontBold,
+    color: COLOR_GOLD,
+  });
+
+  // 4. Meta Dates
+  const orderDateStr = new Date(po.createdAt || (po as any).orderDate || Date.now()).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  const deliveryDateStr = new Date(po.deliveryDeadline || po.expectedDispatchDate || Date.now() + 864000000).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  page.drawText(`Order Date: ${orderDateStr}`, { x: 40, y: 654, size: 9, font: fontBold, color: COLOR_DARK });
+  page.drawText(`Expected Delivery: ${deliveryDateStr}`, { x: 340, y: 654, size: 9, font: fontBold, color: COLOR_DARK });
+
+  // 5. Two Counterparty Boxes
+  // Box 1: Intermediary
+  page.drawRectangle({
+    x: 40,
+    y: 565,
+    width: 250,
+    height: 75,
+    borderColor: COLOR_BORDER,
+    borderWidth: 1,
+    color: COLOR_LIGHT_BG,
+  });
+  page.drawText('INTERMEDIARY BROKER:', { x: 50, y: 625, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText('PRAGYAM ENTERPRISES (Central Desk)', { x: 50, y: 610, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('New Anaj Mandi, Tohana Hub', { x: 50, y: 597, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`Brokerage: INR ${po.brokeragePerMT || 100}/MT (${po.brokeragePayee || 'MUTUAL_SPLIT'})`, { x: 50, y: 578, size: 8, font, color: COLOR_DARK });
+
+  // Box 2: Counterparty
+  page.drawRectangle({
+    x: 305,
+    y: 565,
+    width: 250,
+    height: 75,
+    borderColor: COLOR_BORDER,
+    borderWidth: 1,
+    color: COLOR_LIGHT_BG,
+  });
+  page.drawText('BUYER / PURCHASER (CONFIDENTIAL):', { x: 315, y: 625, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText(po.buyerCompanyName || 'Royal Feast Global Exporters Pvt Ltd', { x: 315, y: 610, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText(`Destination: ${po.deliveryLocation || 'Delhi Trading Hub'}`, { x: 315, y: 597, size: 8, font, color: COLOR_MUTED });
+  page.drawText('Contract Reference: PRG-AGRI-2026', { x: 315, y: 578, size: 8, font, color: COLOR_DARK });
+
+  // 6. Commodity Details Table
+  page.drawRectangle({
+    x: 40,
+    y: 525,
+    width: 515,
+    height: 24,
+    color: rgb(0.90, 0.93, 0.96),
+  });
+  page.drawText('COMMODITY / VARIETY', { x: 48, y: 533, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('CATEGORY', { x: 200, y: 533, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('QUANTITY', { x: 295, y: 533, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('RATE / QTL', { x: 390, y: 533, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('TOTAL VALUE (INR)', { x: 460, y: 533, size: 8, font: fontBold, color: COLOR_DARK });
+
+  const qtyMT = Number(po.quantityMT) || 100;
+  const rateQtl = Number(po.agreedRatePerQuintal) || 8150;
+  const totalVal = po.totalGoodsValue || qtyMT * rateQtl * 10;
+
+  page.drawText(po.riceVariety || '1121 Golden Sella Basmati', { x: 48, y: 506, size: 8.5, font: fontBold, color: COLOR_DARK });
+  page.drawText(po.riceCategory || 'EXPORT GRADE', { x: 200, y: 506, size: 8, font, color: COLOR_DARK });
+  page.drawText(`${qtyMT} MT (${qtyMT * 10} Qtl)`, { x: 295, y: 506, size: 8, font, color: COLOR_DARK });
+  page.drawText(`INR ${rateQtl.toLocaleString('en-IN')}`, { x: 390, y: 506, size: 8, font, color: COLOR_DARK });
+  page.drawText(`INR ${totalVal.toLocaleString('en-IN')}`, { x: 460, y: 506, size: 8.5, font: fontBold, color: COLOR_DARK });
+
+  page.drawLine({
+    start: { x: 40, y: 494 },
+    end: { x: 555, y: 494 },
+    thickness: 0.5,
+    color: COLOR_BORDER,
+  });
+
+  // 7. Quality Specs Box
+  page.drawRectangle({
+    x: 40,
+    y: 405,
+    width: 515,
+    height: 75,
+    borderColor: COLOR_BORDER,
+    borderWidth: 1,
+    color: rgb(0.98, 0.99, 1),
+  });
+  page.drawText('AGMARK & TRADE QUALITY SPECIFICATIONS:', { x: 50, y: 465, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  const q = po.qualitySpecs || {};
+  page.drawText(`- Average Grain Length: ${q.grainLengthMm || 8.35} mm`, { x: 50, y: 448, size: 8, font, color: COLOR_DARK });
+  page.drawText(`- Whiteness (Kett): ${q.whiteness || 40.0}`, { x: 50, y: 434, size: 8, font, color: COLOR_DARK });
+  page.drawText(`- Moisture Content: ${q.moisturePercent || 12.0}% (Max)`, { x: 50, y: 420, size: 8, font, color: COLOR_DARK });
+
+  page.drawText(`- Broken Grain: ${q.brokenPercent || 1.0}% (Max)`, { x: 220, y: 448, size: 8, font, color: COLOR_DARK });
+  page.drawText(`- Optical Sortex: ${q.sortex !== false ? '100% Sortex Clean' : 'Standard'}`, { x: 220, y: 434, size: 8, font, color: COLOR_DARK });
+  page.drawText(`- Foreign Matter: 0.05% (Max)`, { x: 220, y: 420, size: 8, font, color: COLOR_DARK });
+
+  page.drawText(`- Crop Year: ${q.cropYear || '2025-2026'}`, { x: 390, y: 448, size: 8, font, color: COLOR_DARK });
+  page.drawText(`- Packaging: ${po.packaging || 'PP Bags 50 KG Net'}`, { x: 390, y: 434, size: 8, font, color: COLOR_DARK });
+  page.drawText(`- Damaged / Discolored: 0.5% (Max)`, { x: 390, y: 420, size: 8, font, color: COLOR_DARK });
+
+  // 8. Commercial & Escrow Terms
+  page.drawText('COMMERCIAL & ESCROW SETTLEMENT TERMS:', { x: 40, y: 382, size: 9, font: fontBold, color: COLOR_EMERALD });
+  page.drawText(`1. Payment Terms: ${po.paymentTerms || '20% Advance against Escrow, 80% on Dispatch Bilty issuance.'}`, { x: 40, y: 366, size: 8, font, color: COLOR_DARK });
+  page.drawText(`2. Dispatch Depot: ${po.dispatchLocation || 'Taraori Mill Depot, Karnal'}`, { x: 40, y: 353, size: 8, font, color: COLOR_DARK });
+  page.drawText(`3. Escrow Account: ${FIRM_INFO.bankName} | A/C: ${FIRM_INFO.bankAccount} | IFSC: ${FIRM_INFO.bankIfsc}`, { x: 40, y: 340, size: 8, font, color: COLOR_DARK });
+  page.drawText('4. Trade Protection: Absolute confidentiality mandatory. Direct buyer-seller trade communication is strictly prohibited.', { x: 40, y: 327, size: 8, font, color: COLOR_DARK });
+  page.drawText('5. Legal Jurisdiction: Subject to Tohana / Fatehabad (Haryana) Jurisdiction.', { x: 40, y: 314, size: 8, font, color: COLOR_DARK });
+
+  // 9. Signatures
+  page.drawLine({
+    start: { x: 40, y: 285 },
+    end: { x: 555, y: 285 },
+    thickness: 0.5,
+    color: COLOR_BORDER,
+  });
+
+  page.drawText('This is an authenticated computer-generated commercial contract issued under', { x: 40, y: 268, size: 7.5, font, color: COLOR_MUTED });
+  page.drawText('the strict brokerage governance and intermediary trust standards of Pragyam Enterprises.', { x: 40, y: 256, size: 7.5, font, color: COLOR_MUTED });
+
+  page.drawText('For PRAGYAM ENTERPRISES', { x: 390, y: 268, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText('Nikhil Bansal (Proprietor)', { x: 390, y: 254, size: 8, font, color: COLOR_GOLD });
+  page.drawText('Authorized Central Desk Signatory', { x: 390, y: 242, size: 7.5, font, color: COLOR_MUTED });
+
+  const pdfBytes = await doc.save();
+  return Buffer.from(pdfBytes);
 }
 
 /**
- * Generates an official Brokerage Tax Invoice PDF
+ * Generates an official Brokerage Tax Invoice PDF via self-contained pdf-lib
  */
-export function generateInvoicePdfBuffer(invoice: any): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 40, size: 'A4' });
-      const buffers: Buffer[] = [];
+export async function generateInvoicePdfBuffer(invoice: any): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const page = doc.addPage([595.28, 841.89]);
 
-      doc.on('data', chunk => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', err => reject(err));
+  // Brand Bar
+  page.drawRectangle({ x: 40, y: 800, width: 515, height: 6, color: COLOR_EMERALD });
 
-      // Header
-      doc.rect(40, 36, 515, 4).fill('#0D3B2E');
+  page.drawText(FIRM_INFO.name, { x: 40, y: 775, size: 20, font: fontBold, color: COLOR_EMERALD });
+  page.drawText('TAX INVOICE - BROKERAGE & INTERMEDIARY COMMISSION', { x: 40, y: 758, size: 9.5, font: fontBold, color: COLOR_GOLD });
+  page.drawText(FIRM_INFO.address, { x: 40, y: 742, size: 8.5, font, color: COLOR_MUTED });
+  page.drawText(`PAN: ${FIRM_INFO.pan}   |   Contact: ${FIRM_INFO.phone}   |   Email: ${FIRM_INFO.email}`, { x: 40, y: 728, size: 8, font, color: COLOR_MUTED });
 
-      doc.fillColor('#0D3B2E').fontSize(20).text(FIRM_INFO.name, 40, 48, { bold: true } as any);
-      doc.fillColor('#C5A059').fontSize(10).text('TAX INVOICE - BROKERAGE & INTERMEDIARY COMMISSION', 40, 72);
-      doc.fillColor('#64748B').fontSize(8.5).text(FIRM_INFO.address, 40, 87);
-      doc.text(`PAN: ${FIRM_INFO.pan} | Contact: ${FIRM_INFO.phone} | Email: ${FIRM_INFO.email}`, 40, 99);
+  page.drawLine({ start: { x: 40, y: 718 }, end: { x: 555, y: 718 }, thickness: 1, color: COLOR_BORDER });
 
-      doc.strokeColor('#CBD5E1').lineWidth(1).moveTo(40, 115).lineTo(555, 115).stroke();
+  // Banner
+  page.drawRectangle({ x: 40, y: 678, width: 515, height: 30, color: COLOR_EMERALD });
+  page.drawText(`INVOICE NO: ${invoice.invoiceNumber || 'PRG/INV/2026/042'}`, { x: 52, y: 689, size: 11, font: fontBold, color: COLOR_WHITE });
+  const invDate = new Date(invoice.invoiceDate || invoice.createdAt || Date.now()).toLocaleDateString('en-IN');
+  page.drawText(`Date: ${invDate}`, { x: 440, y: 689, size: 9.5, font: fontBold, color: COLOR_GOLD });
 
-      // Invoice Meta Banner
-      doc.rect(40, 125, 515, 28).fill('#0D3B2E');
-      doc.fillColor('#FFFFFF').fontSize(12).text(`INVOICE NO: ${invoice.invoiceNumber || 'PRG/INV/2026/042'}`, 50, 133, { bold: true } as any);
-      const invDate = new Date(invoice.invoiceDate || invoice.createdAt || Date.now()).toLocaleDateString('en-IN');
-      doc.fontSize(9.5).text(`Date: ${invDate}`, 430, 133);
+  // Billed To Box
+  page.drawRectangle({ x: 40, y: 605, width: 515, height: 58, borderColor: COLOR_BORDER, borderWidth: 1, color: COLOR_LIGHT_BG });
+  page.drawText('BILLED TO (CLIENT):', { x: 50, y: 648, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText(invoice.clientName || 'Royal Feast Global Exporters Pvt Ltd', { x: 50, y: 633, size: 9, font: fontBold, color: COLOR_DARK });
+  page.drawText(`Reference Purchase Order: ${invoice.poNumber || 'PO-2026-9042'}`, { x: 50, y: 618, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`PAN Reference: ${FIRM_INFO.pan}`, { x: 350, y: 618, size: 8, font, color: COLOR_MUTED });
 
-      // Billed To
-      doc.rect(40, 165, 515, 55).strokeColor('#CBD5E1').stroke();
-      doc.fillColor('#0D3B2E').fontSize(9).text('BILLED TO (CLIENT):', 48, 173, { bold: true } as any);
-      doc.fillColor('#1E293B').fontSize(9.5).text(invoice.clientName || 'Royal Feast Global Exporters Pvt Ltd', 48, 187, { bold: true } as any);
-      doc.fillColor('#475569').fontSize(8.5).text(`Reference Purchase Order: ${invoice.poNumber || 'PO-2026-9042'}`, 48, 201);
-      doc.text(`PAN Reference: HSAPB2553Q`, 330, 201);
+  // Table Header
+  page.drawRectangle({ x: 40, y: 560, width: 515, height: 24, color: rgb(0.90, 0.93, 0.96) });
+  page.drawText('DESCRIPTION OF SERVICE', { x: 48, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('SAC CODE', { x: 300, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('TAXABLE VALUE (INR)', { x: 420, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
 
-      // Table Header
-      doc.rect(40, 235, 515, 22).fill('#F1F5F9');
-      doc.fillColor('#0F172A').fontSize(8.5).text('DESCRIPTION OF SERVICE', 48, 242, { bold: true } as any);
-      doc.text('SAC CODE', 270, 242, { bold: true } as any);
-      doc.text('TAXABLE VALUE (INR)', 410, 242, { bold: true } as any);
+  // Table Row
+  const taxable = Number(invoice.taxableAmount || invoice.brokerageAmount) || 37000;
+  page.drawText('Agricultural Commodity & Rice Brokerage Intermediary Commission', { x: 48, y: 540, size: 8, font, color: COLOR_DARK });
+  page.drawText(invoice.sacCode || invoice.hsnSacCode || '998319', { x: 300, y: 540, size: 8, font, color: COLOR_DARK });
+  page.drawText(`INR ${taxable.toLocaleString('en-IN')}`, { x: 420, y: 540, size: 8.5, font: fontBold, color: COLOR_DARK });
 
-      // Table Row
-      const taxable = Number(invoice.taxableAmount || invoice.brokerageAmount) || 37000;
-      doc.fillColor('#1E293B').fontSize(8.5);
-      doc.text('Agricultural Commodity & Rice Brokerage Intermediary Commission', 48, 267);
-      doc.text(invoice.sacCode || invoice.hsnSacCode || '998319', 270, 267);
-      doc.text(`₹${taxable.toLocaleString('en-IN')}`, 410, 267);
+  page.drawLine({ start: { x: 40, y: 526 }, end: { x: 555, y: 526 }, thickness: 0.5, color: COLOR_BORDER });
 
-      doc.strokeColor('#CBD5E1').lineWidth(0.5).moveTo(40, 290).lineTo(555, 290).stroke();
+  // Tax Breakdown
+  const cgst = Number(invoice.cgstAmount) || 3330;
+  const sgst = Number(invoice.sgstAmount) || 3330;
+  const grandTotal = taxable + cgst + sgst;
 
-      // Tax Breakdown
-      doc.fontSize(8.5);
-      let y = 305;
-      const cgst = Number(invoice.cgstAmount) || 3330;
-      const sgst = Number(invoice.sgstAmount) || 3330;
-      const totalTax = cgst + sgst;
-      const grandTotal = taxable + totalTax;
+  page.drawText('Central GST (CGST) @ 9.0%:', { x: 280, y: 505, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`INR ${cgst.toLocaleString('en-IN')}`, { x: 440, y: 505, size: 8, font, color: COLOR_DARK });
 
-      doc.fillColor('#475569');
-      doc.text('Central GST (CGST) @ 9.0%', 270, y);
-      doc.text(`₹${cgst.toLocaleString('en-IN')}`, 410, y);
-      y += 18;
+  page.drawText('State GST (SGST) @ 9.0%:', { x: 280, y: 488, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`INR ${sgst.toLocaleString('en-IN')}`, { x: 440, y: 488, size: 8, font, color: COLOR_DARK });
 
-      doc.text('State GST (SGST) @ 9.0%', 270, y);
-      doc.text(`₹${sgst.toLocaleString('en-IN')}`, 410, y);
-      y += 18;
+  page.drawLine({ start: { x: 280, y: 476 }, end: { x: 555, y: 476 }, thickness: 1, color: COLOR_EMERALD });
+  page.drawText('GRAND TOTAL:', { x: 280, y: 460, size: 10, font: fontBold, color: COLOR_EMERALD });
+  page.drawText(`INR ${grandTotal.toLocaleString('en-IN')}`, { x: 440, y: 460, size: 10, font: fontBold, color: COLOR_EMERALD });
 
-      doc.strokeColor('#0D3B2E').lineWidth(1).moveTo(270, y).lineTo(555, y).stroke();
-      y += 8;
-      doc.fillColor('#0D3B2E').fontSize(11).text('GRAND TOTAL:', 270, y, { bold: true } as any);
-      doc.text(`₹${grandTotal.toLocaleString('en-IN')}`, 410, y, { bold: true } as any);
+  // Bank Remittance
+  page.drawRectangle({ x: 40, y: 380, width: 515, height: 60, borderColor: COLOR_BORDER, borderWidth: 1, color: COLOR_LIGHT_BG });
+  page.drawText('REMITTANCE BANK DETAILS:', { x: 50, y: 425, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText(`Bank: ${FIRM_INFO.bankName}   |   Account Name: ${FIRM_INFO.accountHolder}`, { x: 50, y: 408, size: 8, font, color: COLOR_DARK });
+  page.drawText(`Account Number: ${FIRM_INFO.bankAccount}   |   IFSC: ${FIRM_INFO.bankIfsc}`, { x: 50, y: 394, size: 8, font: fontBold, color: COLOR_DARK });
 
-      // Bank Details
-      doc.rect(40, 385, 515, 65).strokeColor('#CBD5E1').stroke();
-      doc.fillColor('#0D3B2E').fontSize(9).text('REMITTANCE BANK DETAILS:', 48, 393, { bold: true } as any);
-      doc.fillColor('#334155').fontSize(8.5);
-      doc.text(`Bank: ${FIRM_INFO.bankName}`, 48, 407);
-      doc.text(`Account Name: ${FIRM_INFO.accountHolder}`, 48, 419);
-      doc.text(`Account Number: ${FIRM_INFO.bankAccount} | IFSC: ${FIRM_INFO.bankIfsc}`, 48, 431);
+  // Signatures
+  page.drawLine({ start: { x: 40, y: 345 }, end: { x: 555, y: 345 }, thickness: 0.5, color: COLOR_BORDER });
+  page.drawText('Terms: Payment due within 7 days of invoice date. Subject to Tohana / Fatehabad (Haryana) Jurisdiction.', { x: 40, y: 330, size: 7.5, font, color: COLOR_MUTED });
+  page.drawText('For PRAGYAM ENTERPRISES', { x: 390, y: 330, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText('Authorized Central Desk Signatory', { x: 390, y: 316, size: 7.5, font, color: COLOR_MUTED });
 
-      // Signatures
-      doc.strokeColor('#CBD5E1').lineWidth(0.5).moveTo(40, 480).lineTo(555, 480).stroke();
-      doc.fillColor('#64748B').fontSize(7.5);
-      doc.text('Terms: Payment due within 7 days of invoice date. Subject to Tohana / Fatehabad (Haryana) Jurisdiction.', 40, 495);
-      doc.text('This is an authenticated computer-generated brokerage invoice from Pragyam Enterprises.', 40, 506);
-
-      doc.fillColor('#0D3B2E').fontSize(9).text('For PRAGYAM ENTERPRISES', 390, 495, { bold: true } as any);
-      doc.fillColor('#64748B').fontSize(7.5).text('Authorized Signatory', 390, 515);
-
-      doc.end();
-    } catch (e) {
-      reject(e);
-    }
-  });
+  const pdfBytes = await doc.save();
+  return Buffer.from(pdfBytes);
 }

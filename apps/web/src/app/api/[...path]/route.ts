@@ -618,29 +618,36 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
 
   // 5. Submit Requirement
   if (path === 'requirements') {
+    const rawLoc = body.deliveryLocation;
+    const locationStr =
+      typeof rawLoc === 'object' && rawLoc !== null
+        ? `${rawLoc.city || ''}${rawLoc.city && rawLoc.state ? ', ' : ''}${rawLoc.state || ''}`.trim()
+        : String(rawLoc || 'New Delhi, Delhi');
+
+    const qSpecs = body.qualitySpecs || {};
     const newReq = {
       id: `req-${Date.now()}`,
       buyerId: 'buy-prof-001',
       requirementCode: `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: body.category || 'GOLDEN_SELLA_RICE',
-      variety: body.variety || '1121 Golden Sella Basmati',
+      category: body.category || 'STEAM_RICE',
+      variety: body.variety || '1509 Basmati Steam',
       classification: body.classification || 'BASMATI',
       requiredQuantityMT: Number(body.requiredQuantityMT) || 100,
       minQuantityMT: Number(body.minQuantityMT) || 50,
       maxQuantityMT: Number(body.maxQuantityMT) || 150,
-      targetPricePerQuintal: Number(body.targetPricePerQuintal) || 8100,
-      targetPricePerMT: (Number(body.targetPricePerQuintal) || 8100) * 10,
-      deliveryLocation: body.deliveryLocation || 'Delhi Hub',
-      preferredDeliveryDate: body.preferredDeliveryDate || '2026-03-30',
+      targetPricePerQuintal: Number(body.targetPricePerQuintal) || 6800,
+      targetPricePerMT: (Number(body.targetPricePerQuintal) || 6800) * 10,
+      deliveryLocation: locationStr,
+      preferredDeliveryDate: body.preferredDeliveryDate || 'Immediate Dispatch',
       paymentTermsOffered: body.paymentTermsOffered || 'Standard Broker Escrow Terms',
       qualitySpecs: {
-        grainLengthMm: Number(body.grainLengthMm) || 8.35,
-        whiteness: Number(body.whiteness) || 40.0,
-        moisturePercent: Number(body.moisturePercent) || 12.0,
-        brokenPercent: Number(body.brokenPercent) || 1.0,
-        sortex: true
+        grainLengthMm: Number(qSpecs.grainLengthMm || body.grainLengthMm) || 8.35,
+        whiteness: Number(qSpecs.whiteness || body.whiteness) || 40.0,
+        moisturePercent: Number(qSpecs.moisturePercent || body.moisturePercent) || 12.5,
+        brokenPercent: Number(qSpecs.brokenPercent || body.brokenPercent) || 1.0,
+        sortex: qSpecs.sortex !== undefined ? qSpecs.sortex : true
       },
-      packagingRequired: body.packagingRequired || 'PP_BAG_50KG',
+      packagingRequired: body.packagingRequirement || body.packagingRequired || 'PP_BAG_50KG',
       status: 'OPEN' as any,
       matchedListingsCount: 1,
       createdAt: new Date().toISOString(),
