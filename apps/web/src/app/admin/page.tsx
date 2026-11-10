@@ -26,7 +26,8 @@ import {
   Lock,
   ChevronRight,
   History,
-  ShieldAlert
+  ShieldAlert,
+  ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/apiClient';
@@ -45,6 +46,7 @@ export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState<
     | 'overview'
     | 'inventory'
+    | 'requirements'
     | 'matching'
     | 'negotiations'
     | 'orders'
@@ -390,6 +392,18 @@ export default function SuperAdminDashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab('requirements')}
+              className={`w-full flex items-center space-x-2.5 px-3 py-2.5 rounded-xl transition ${
+                activeTab === 'requirements'
+                  ? 'bg-[#0D3B2E] text-white font-bold border border-[#C5A059]/40'
+                  : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              <ClipboardList className="w-4 h-4 text-[#C5A059]" />
+              <span>Buyer Requirements ({requirements.length})</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('matching')}
               className={`w-full flex items-center space-x-2.5 px-3 py-2.5 rounded-xl transition ${
                 activeTab === 'matching'
@@ -564,7 +578,7 @@ export default function SuperAdminDashboard() {
               </div>
 
               {/* Second row KPI */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                   <span className="text-xs font-bold text-gray-500 uppercase block mb-1">Received Payments</span>
                   <div className="text-xl font-extrabold text-emerald-700">
@@ -587,6 +601,17 @@ export default function SuperAdminDashboard() {
                     {metrics.totalPurchaseOrders} Orders
                   </div>
                   <span className="text-[11px] text-gray-400">{metrics.pendingOrders} pending, {metrics.completedOrders} completed</span>
+                </div>
+
+                <div
+                  onClick={() => setActiveTab('requirements')}
+                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-[#0D3B2E] transition"
+                >
+                  <span className="text-xs font-bold text-gray-500 uppercase block mb-1">Buyer Demands</span>
+                  <div className="text-xl font-extrabold text-[#0D3B2E]">
+                    {requirements.length} Requirements
+                  </div>
+                  <span className="text-[11px] text-[#C5A059] font-bold">View Procurement Demands ➔</span>
                 </div>
               </div>
 
@@ -694,6 +719,87 @@ export default function SuperAdminDashboard() {
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: BUYER PROCUREMENT REQUIREMENTS REGISTER */}
+          {activeTab === 'requirements' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900">Buyer Procurement Demands ({requirements.length})</h2>
+                  <p className="text-xs text-slate-500">Live purchase requirements broadcast by verified buyers, wholesale traders, and exporters.</p>
+                </div>
+              </div>
+
+              {requirements.length === 0 ? (
+                <div className="bg-white p-12 text-center rounded-2xl border border-slate-200">
+                  <ClipboardList className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                  <h3 className="font-bold text-slate-800">No active buyer requirements yet</h3>
+                  <p className="text-xs text-slate-500">When buyers post requirements from their portal, they will appear here immediately.</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase">
+                        <tr>
+                          <th className="p-3.5">Req Code</th>
+                          <th className="p-3.5">Rice Variety / Category</th>
+                          <th className="p-3.5">Required Volume</th>
+                          <th className="p-3.5">Target Rate</th>
+                          <th className="p-3.5">Quality Specifications</th>
+                          <th className="p-3.5">Destination Hub</th>
+                          <th className="p-3.5">Status</th>
+                          <th className="p-3.5 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {requirements.map((req: any) => (
+                          <tr key={req.id} className="hover:bg-slate-50 transition">
+                            <td className="p-3.5 font-mono font-bold text-[#0D3B2E]">{req.requirementCode || req.id}</td>
+                            <td className="p-3.5">
+                              <span className="font-bold text-slate-800 block">{req.variety}</span>
+                              <span className="text-[10px] text-gray-500">{req.category}</span>
+                            </td>
+                            <td className="p-3.5 font-semibold text-slate-900">
+                              {req.requiredQuantityMT} MT ({Number(req.requiredQuantityMT) * 10} Qtl)
+                            </td>
+                            <td className="p-3.5 font-bold text-[#0D3B2E]">
+                              ₹{req.targetPricePerQuintal?.toLocaleString('en-IN')}/Qtl
+                            </td>
+                            <td className="p-3.5 text-gray-600">
+                              {req.qualitySpecs?.grainLengthMm}mm | {req.qualitySpecs?.moisturePercent}% Moist | {req.qualitySpecs?.brokenPercent}% Broken
+                            </td>
+                            <td className="p-3.5 text-slate-700">
+                              {typeof req.deliveryLocation === 'object' && req.deliveryLocation !== null
+                                ? `${req.deliveryLocation.city || ''}, ${req.deliveryLocation.state || ''}`
+                                : String(req.deliveryLocation || 'Delhi Hub')}
+                            </td>
+                            <td className="p-3.5">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                                {req.status || 'OPEN'}
+                              </span>
+                            </td>
+                            <td className="p-3.5 text-right">
+                              <button
+                                onClick={() => {
+                                  setActiveTab('matching');
+                                  showNotification(`Matching active mill stock for ${req.variety}`);
+                                }}
+                                className="bg-[#0D3B2E] hover:bg-[#166534] text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition inline-flex items-center space-x-1"
+                              >
+                                <span>Match Mill Stock</span>
+                                <ArrowRight className="w-3 h-3 text-[#C5A059]" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

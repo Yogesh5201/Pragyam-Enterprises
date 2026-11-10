@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   UserRole,
   UserStatus,
@@ -198,8 +200,37 @@ class ServerlessDataStore {
       isVerified: true
     };
 
-    this.users.push(seller1User, seller2User);
-    this.sellerProfiles.push(seller1Profile, seller2Profile);
+    const seller3User: DbUser = {
+      id: 'usr-seller-bansal',
+      email: 'nikhilbansal9896@gmail.com',
+      password: 'Pragyam@2026',
+      role: UserRole.SELLER,
+      status: UserStatus.ACTIVE,
+      mfaEnabled: false,
+      createdAt: '2026-02-10T00:00:00.000Z'
+    };
+    const seller3Profile: DbSellerProfile = {
+      id: 'sel-prof-bansal',
+      userId: seller3User.id,
+      fullName: 'Satyanarayan',
+      companyName: 'BASNAL TRADESR',
+      phone: '+91 9416365869',
+      address: 'New Anaj Mandi, Station Road',
+      city: 'tohana',
+      district: 'Fatehabad',
+      state: 'Haryana',
+      pinCode: '125120',
+      gstin: '06ATTPS1820N1Z2',
+      panNumber: 'ATTPS1820N',
+      businessType: BusinessType.RICE_MILLER,
+      millName: 'BANSAL TRADERS',
+      millCapacityMTPerDay: 150,
+      dispatchLocations: ['TOHANA Yard', 'Tohana Mandi Depot'],
+      isVerified: true
+    };
+
+    this.users.push(seller1User, seller2User, seller3User);
+    this.sellerProfiles.push(seller1Profile, seller2Profile, seller3Profile);
 
     // 3. Buyers (Institutional Purchasers & Exporters)
     const buyer1User: DbUser = {
@@ -228,8 +259,32 @@ class ServerlessDataStore {
       isVerified: true
     };
 
-    this.users.push(buyer1User);
-    this.buyerProfiles.push(buyer1Profile);
+    const buyer2User: DbUser = {
+      id: 'usr-buyer-haruana',
+      email: 'buyer-haruana@pragyam.com',
+      password: 'Pragyam@2026',
+      role: UserRole.BUYER,
+      status: UserStatus.ACTIVE,
+      mfaEnabled: false,
+      createdAt: '2026-02-12T00:00:00.000Z'
+    };
+    const buyer2Profile: DbBuyerProfile = {
+      id: 'buy-prof-haruana',
+      userId: buyer2User.id,
+      fullName: 'BANAN',
+      companyName: 'haruana',
+      phone: '+91 9896346337',
+      address: 'Grain Market Hub, Tona',
+      city: 'TONA',
+      district: 'Fatehabad',
+      state: 'Haryana',
+      pinCode: '125120',
+      businessType: BusinessType.WHOLESALER,
+      isVerified: true
+    };
+
+    this.users.push(buyer1User, buyer2User);
+    this.buyerProfiles.push(buyer1Profile, buyer2Profile);
 
     // 4. Initial Anonymous Listings
     this.listings.push(
@@ -355,54 +410,141 @@ class ServerlessDataStore {
         moderationFlagged: false,
         createdAt: '2026-02-10T14:30:00.000Z',
         updatedAt: '2026-02-10T14:30:00.000Z'
+      },
+      {
+        id: 'lst-3428',
+        sellerId: seller3Profile.id,
+        anonymousCode: 'PRG-3428',
+        category: RiceCategory.GOLDEN_SELLA_RICE,
+        variety: '1121 Golden Sella Basmati',
+        classification: RiceClassification.BASMATI,
+        availableQuantityMT: 70,
+        minOrderQuantityMT: 20,
+        maxOrderQuantityMT: 70,
+        askingPricePerQuintal: 9000,
+        brokerageOffered: 40,
+        brokerageType: BrokerageType.PER_METRIC_TONNE,
+        millLocation: 'TOHANA Mill Yard, Haryana',
+        dispatchLocation: 'TOHANA',
+        generalizedDistrict: 'Fatehabad',
+        generalizedState: 'Haryana',
+        qualitySpecs: {
+          grainLengthMm: 8.35,
+          whiteness: 40.0,
+          moisturePercent: 12.0,
+          brokenPercent: 1.0,
+          foreignMatterPercent: 0.05,
+          damagedGrainPercent: 0.5,
+          chalkyGrainPercent: 1.0,
+          yellowGrainPercent: 0.4,
+          sortex: true,
+          cropYear: '2025-2026'
+        },
+        packaging: PackagingType.PP_BAG_50KG,
+        availabilityDate: 'Immediate Stock',
+        cropYear: '2025-2026',
+        stockImages: [
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'
+        ],
+        notes: 'Bansal Traders verified ready lot ex-Tohana.',
+        status: ListingStatus.PUBLISHED,
+        moderationFlagged: false,
+        createdAt: '2026-02-16T10:00:00.000Z',
+        updatedAt: '2026-02-16T10:00:00.000Z'
       }
     );
 
     // 5. Pre-seeded Requirements
-    this.requirements.push({
-      id: 'req-201',
-      buyerId: buyer1Profile.id,
-      requirementCode: 'REQ-2026-8801',
-      category: RiceCategory.GOLDEN_SELLA_RICE,
-      variety: '1121 Golden Sella Basmati',
-      classification: RiceClassification.BASMATI,
-      requiredQuantityMT: 200,
-      minQuantityMT: 100,
-      maxQuantityMT: 250,
-      targetPricePerQuintal: 8100,
-      targetPricePerMT: 81000,
-      deliveryLocation: 'Mundra Port CFS, Gujarat',
-      preferredDeliveryDate: '2026-03-15',
-      paymentTermsOffered: '10% Advance, 90% Against Delivery Bilty & Quality Report',
-      qualitySpecs: {
-        grainLengthMm: 8.35,
-        whiteness: 40.0,
-        moisturePercent: 12.0,
-        brokenPercent: 1.0,
-        sortex: true
+    this.requirements.push(
+      {
+        id: 'req-201',
+        buyerId: buyer1Profile.id,
+        requirementCode: 'REQ-2026-8801',
+        category: RiceCategory.GOLDEN_SELLA_RICE,
+        variety: '1121 Golden Sella Basmati',
+        classification: RiceClassification.BASMATI,
+        requiredQuantityMT: 200,
+        minQuantityMT: 100,
+        maxQuantityMT: 250,
+        targetPricePerQuintal: 8100,
+        targetPricePerMT: 81000,
+        deliveryLocation: 'Mundra Port CFS, Gujarat',
+        preferredDeliveryDate: '2026-03-15',
+        paymentTermsOffered: '10% Advance, 90% Against Delivery Bilty & Quality Report',
+        qualitySpecs: {
+          grainLengthMm: 8.35,
+          whiteness: 40.0,
+          moisturePercent: 12.0,
+          brokenPercent: 1.0,
+          sortex: true
+        },
+        packagingRequired: PackagingType.PP_BAG_50KG,
+        status: 'MATCHED' as any,
+        matchedListingsCount: 1,
+        createdAt: '2026-02-15T09:00:00.000Z',
+        updatedAt: '2026-02-15T09:00:00.000Z'
       },
-      packagingRequired: PackagingType.PP_BAG_50KG,
-      status: 'MATCHED' as any,
-      matchedListingsCount: 1,
-      createdAt: '2026-02-15T09:00:00.000Z',
-      updatedAt: '2026-02-15T09:00:00.000Z'
-    });
+      {
+        id: 'req-haruana-01',
+        buyerId: buyer2Profile.id,
+        requirementCode: 'REQ-2026-3401',
+        category: RiceCategory.GOLDEN_SELLA_RICE,
+        variety: '1121 Golden Sella Basmati',
+        classification: RiceClassification.BASMATI,
+        requiredQuantityMT: 70,
+        minQuantityMT: 50,
+        maxQuantityMT: 100,
+        targetPricePerQuintal: 8950,
+        targetPricePerMT: 89500,
+        deliveryLocation: 'TONA, Haryana',
+        preferredDeliveryDate: 'Immediate Dispatch',
+        paymentTermsOffered: '10% Advance Escrow, 90% on Tohana Yard Loading',
+        qualitySpecs: {
+          grainLengthMm: 8.35,
+          whiteness: 40.0,
+          moisturePercent: 12.0,
+          brokenPercent: 1.0,
+          sortex: true
+        },
+        packagingRequired: PackagingType.PP_BAG_50KG,
+        status: 'OPEN' as any,
+        matchedListingsCount: 1,
+        createdAt: '2026-02-16T11:00:00.000Z',
+        updatedAt: '2026-02-16T11:00:00.000Z'
+      }
+    );
 
     // 6. Pre-seeded Enquiries
-    this.enquiries.push({
-      id: 'enq-301',
-      buyerId: buyer1Profile.id,
-      listingId: 'lst-1025',
-      enquiryCode: 'ENQ-2026-4401',
-      anonymousListingCode: 'PRG-1025',
-      requestedQuantityMT: 100,
-      targetPricePerQuintal: 8150,
-      buyerNotes: 'Ready for immediate dispatch contract upon broker verification.',
-      adminStatus: 'CONVERTED_TO_DEAL' as any,
-      sellerInformedStatus: 'ACCEPTED' as any,
-      createdAt: '2026-02-18T11:00:00.000Z',
-      updatedAt: '2026-02-18T14:00:00.000Z'
-    });
+    this.enquiries.push(
+      {
+        id: 'enq-301',
+        buyerId: buyer1Profile.id,
+        listingId: 'lst-1025',
+        enquiryCode: 'ENQ-2026-4401',
+        anonymousListingCode: 'PRG-1025',
+        requestedQuantityMT: 100,
+        targetPricePerQuintal: 8150,
+        buyerNotes: 'Ready for immediate dispatch contract upon broker verification.',
+        adminStatus: 'CONVERTED_TO_DEAL' as any,
+        sellerInformedStatus: 'ACCEPTED' as any,
+        createdAt: '2026-02-18T11:00:00.000Z',
+        updatedAt: '2026-02-18T14:00:00.000Z'
+      },
+      {
+        id: 'enq-haruana-01',
+        buyerId: buyer2Profile.id,
+        listingId: 'lst-3428',
+        enquiryCode: 'ENQ-2026-7789',
+        anonymousListingCode: 'PRG-3428',
+        requestedQuantityMT: 70,
+        targetPricePerQuintal: 8950,
+        buyerNotes: 'Commercial purchase enquiry for Bansal Traders Tohana yard stock.',
+        adminStatus: 'PENDING_ADMIN_REVIEW' as any,
+        sellerInformedStatus: 'ACCEPTED' as any,
+        createdAt: '2026-02-18T12:00:00.000Z',
+        updatedAt: '2026-02-18T12:00:00.000Z'
+      }
+    );
 
     // 7. Confirmed Purchase Order
     this.purchaseOrders.push({
@@ -549,7 +691,67 @@ class ServerlessDataStore {
       dueDate: '2026-03-05T00:00:00.000Z'
     } as any);
 
-    // 11. Audit Log
+    // 11. Negotiations Desk
+    this.negotiations.push(
+      {
+        id: 'neg-101',
+        enquiryId: 'enq-301',
+        buyerId: buyer1Profile.id,
+        buyerCompanyName: 'Royal Feast Global Exporters Pvt Ltd',
+        sellerId: seller1Profile.id,
+        sellerMillName: 'Taraori Golden Rice Mills Ltd',
+        sellerCompanyName: 'Taraori Golden Rice Mills Ltd',
+        anonymousListingCode: 'PRG-1025',
+        variety: '1121 Golden Sella Basmati',
+        requestedQuantityMT: 100,
+        agreedQuantityMT: 100,
+        buyerTargetPrice: 8100,
+        sellerAskingPrice: 8200,
+        sellerInitialPrice: 8200,
+        adminNegotiatedPrice: 8150,
+        finalAgreedPrice: 8150,
+        brokeragePerMT: 100,
+        brokeragePerUnit: 100,
+        brokeragePayee: 'BUYER_AND_SELLER_SPLIT' as any,
+        status: 'AGREED' as any,
+        history: [
+          { actor: 'BUYER' as any, note: 'Offered ₹8,100/Qtl for 100 MT ex-Karnal depot' },
+          { actor: 'SELLER' as any, note: 'Quoted ₹8,200/Qtl ex-mill gate' },
+          { actor: 'ADMIN' as any, note: 'Broker counter-offer settled at ₹8,150/Qtl mutually accepted' }
+        ],
+        updatedAt: new Date().toISOString()
+      } as any,
+      {
+        id: 'neg-bansal-01',
+        enquiryId: 'enq-haruana-01',
+        buyerId: buyer2Profile.id,
+        buyerCompanyName: 'haruana (Representative: BANAN)',
+        sellerId: seller3Profile.id,
+        sellerMillName: 'BANSAL TRADERS (Satyanarayan)',
+        sellerCompanyName: 'BASNAL TRADESR',
+        anonymousListingCode: 'PRG-3428',
+        variety: '1121 Golden Sella Basmati',
+        requestedQuantityMT: 70,
+        agreedQuantityMT: 70,
+        buyerTargetPrice: 8900,
+        sellerAskingPrice: 9000,
+        sellerInitialPrice: 9000,
+        adminNegotiatedPrice: 8950,
+        finalAgreedPrice: 8950,
+        brokeragePerMT: 40,
+        brokeragePerUnit: 40,
+        brokeragePayee: 'BUYER_AND_SELLER_SPLIT' as any,
+        status: 'UNDER_BROKER_REVIEW' as any,
+        history: [
+          { actor: 'SELLER' as any, note: 'Bansal Traders listed 70 MT @ ₹9,000/Qtl ex-Tohana yard with ₹40/MT brokerage offered' },
+          { actor: 'BUYER' as any, note: 'haruana submitted procurement enquiry at target ₹8,900/Qtl' },
+          { actor: 'ADMIN' as any, note: 'Pragyam Central Intermediary Desk counter-settlement proposed at ₹8,950/Qtl' }
+        ],
+        updatedAt: new Date().toISOString()
+      } as any
+    );
+
+    // 12. Audit Log
     this.auditLogs.push({
       id: 'AUD-001',
       timestamp: new Date().toISOString(),
@@ -560,6 +762,59 @@ class ServerlessDataStore {
       entityId: 'PRAGYAM-PLATFORM',
       details: 'Pragyam Enterprises Brokerage Intermediary System fully operational.'
     });
+  }
+
+  private getStoragePath() {
+    const tmpDir = process.platform === 'win32' ? process.env.TEMP || 'C:\\Windows\\Temp' : '/tmp';
+    return path.join(tmpDir, 'pragyam_serverless_db.json');
+  }
+
+  public persist() {
+    try {
+      const data = {
+        users: this.users,
+        buyerProfiles: this.buyerProfiles,
+        sellerProfiles: this.sellerProfiles,
+        listings: this.listings,
+        requirements: this.requirements,
+        enquiries: this.enquiries,
+        negotiations: this.negotiations,
+        purchaseOrders: this.purchaseOrders,
+        transportRecords: this.transportRecords,
+        payments: this.payments,
+        invoices: this.invoices,
+        auditLogs: this.auditLogs
+      };
+      fs.writeFileSync(this.getStoragePath(), JSON.stringify(data), 'utf-8');
+    } catch (e) {
+      // Non-fatal on restricted environments
+    }
+  }
+
+  public loadFromDisk() {
+    try {
+      const p = this.getStoragePath();
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed.listings && parsed.listings.length > 0) {
+          this.users = parsed.users || this.users;
+          this.buyerProfiles = parsed.buyerProfiles || this.buyerProfiles;
+          this.sellerProfiles = parsed.sellerProfiles || this.sellerProfiles;
+          this.listings = parsed.listings || this.listings;
+          this.requirements = parsed.requirements || this.requirements;
+          this.enquiries = parsed.enquiries || this.enquiries;
+          this.negotiations = parsed.negotiations || this.negotiations;
+          this.purchaseOrders = parsed.purchaseOrders || this.purchaseOrders;
+          this.transportRecords = parsed.transportRecords || this.transportRecords;
+          this.payments = parsed.payments || this.payments;
+          this.invoices = parsed.invoices || this.invoices;
+          this.auditLogs = parsed.auditLogs || this.auditLogs;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   // Helper getters
@@ -578,4 +833,5 @@ class ServerlessDataStore {
 
 // Global singleton instance
 const globalStore = new ServerlessDataStore();
+globalStore.loadFromDisk();
 export const db = globalStore;

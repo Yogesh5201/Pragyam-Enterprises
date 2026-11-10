@@ -7,6 +7,25 @@ import {
   generateInvoicePdfBuffer
 } from '../../../server/documentService';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// Helper to extract authenticated user from Bearer token
+function getUserFromRequest(request: NextRequest) {
+  const authHeader = request.headers.get('authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return null;
+  if (token === 'pragyam-admin-bearer-token-verified') {
+    return { id: 'usr-admin-001', role: UserRole.SUPER_ADMIN, email: 'admin@pragyam.com' };
+  }
+  if (token.startsWith('pragyam-client-token-')) {
+    const userId = token.replace('pragyam-client-token-', '');
+    const user = db.users.find(u => u.id === userId);
+    return user || null;
+  }
+  return null;
+}
+
 // Helper to sanitize listing for anonymous buyer/public view
 function sanitizeListing(l: any) {
   return {
@@ -86,12 +105,12 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
   // 3. Admin Inventory (Unredacted)
   if (path === 'inventory/admin/all') {
     const fullListings = db.listings.map(l => {
-      const seller = db.sellerProfiles.find(s => s.id === l.sellerId);
+      const seller = db.sellerProfiles.find(s => s.id === l.sellerId) || db.sellerProfiles[0];
       return {
         ...l,
-        sellerCompanyName: seller?.companyName || seller?.millName || 'Taraori Golden Rice Mills Ltd',
-        sellerFullName: seller?.fullName || 'Rameshwar Lal Singhal',
-        sellerPhone: seller?.phone || '+91 98960 11223',
+        sellerCompanyName: seller?.companyName || seller?.millName || 'BANSAL TRADERS',
+        sellerFullName: seller?.fullName || 'Satyanarayan',
+        sellerPhone: seller?.phone || '+91 9416365869',
         sellerActualInfo: {
           sellerId: seller?.id,
           sellerName: seller?.fullName,
@@ -107,14 +126,18 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 4. Seller Inventory
   if (path === 'inventory/seller/my-listings') {
-    // Return listings for the primary seller
-    const sellerListings = db.listings.map(l => ({
-      ...l,
-      sellerActualInfo: {
-        millName: 'Taraori Golden Rice Mills',
-        actualMillLocation: l.millLocation
-      }
-    }));
+    const user = getUserFromRequest(request);
+    const seller = user ? db.sellerProfiles.find(s => s.userId === user.id) : null;
+    const sellerListings = db.listings.map(l => {
+      const actualSeller = db.sellerProfiles.find(s => s.id === l.sellerId) || seller || db.sellerProfiles[0];
+      return {
+        ...l,
+        sellerActualInfo: {
+          millName: actualSeller?.millName || actualSeller?.companyName || 'BANSAL TRADERS',
+          actualMillLocation: l.millLocation
+        }
+      };
+    });
     return NextResponse.json({ success: true, listings: sellerListings });
   }
 
@@ -131,36 +154,53 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
   // 7. Matching Recommendations (AI Broker Matching)
   if (path === 'matching/admin/recommendations') {
     const recommendations = db.requirements.map(req => {
-      const matched = db.listings[0];
+      const buyer = db.buyerProfiles.find(b => b.id === req.buyerId) || db.buyerProfiles[0];
+      // Find the most suitable listing
+      const matched =
+        db.listings.find(
+          l =>
+            l.variety.toLowerCase().includes(req.variety.toLowerCase().slice(0, 4)) ||
+            l.category === req.category
+        ) || db.listings[0];
+      const seller = db.sellerProfiles.find(s => s.id === matched.sellerId) || db.sellerProfiles[0];
+
+      const priceDiff = Math.abs(matched.askingPricePerQuintal - req.targetPricePerQuintal);
+      const isClosePrice = priceDiff <= 200;
+      const matchScore = isClosePrice ? 96 : 91;
+
       return {
         requirementId: req.id,
         requirementCode: req.requirementCode,
-        buyerCompanyName: 'Royal Feast Global Exporters Pvt Ltd',
+        buyerCompanyName: buyer.companyName,
         variety: req.variety,
         requiredMT: req.requiredQuantityMT,
         targetPricePerQuintal: req.targetPricePerQuintal,
         listingId: matched.id,
         anonymousListingCode: matched.anonymousCode,
-        sellerMillName: 'Taraori Golden Rice Mills Ltd',
-        sellerCompanyName: 'Taraori Golden Rice Mills Ltd',
+        sellerMillName: seller.millName || seller.companyName,
+        sellerCompanyName: seller.companyName,
         sellerAskingPrice: matched.askingPricePerQuintal,
         sellerAvailableMT: matched.availableQuantityMT,
         category: req.category,
-        overallMatchScore: 94,
-        qualityScore: 96,
-        priceScore: 92,
-        quantityScore: 95,
-        locationScore: 90,
-        recommendationSummary: 'High probability deal: Specs closely aligned. Taraori Mill has 500 MT ready stock with required length (8.35mm).',
+        overallMatchScore: matchScore,
+        qualityScore: 97,
+        priceScore: isClosePrice ? 95 : 88,
+        quantityScore: 98,
+        locationScore: 95,
+        recommendationSummary: `High probability deal: ${req.variety} specs aligned. ${seller.millName} has ${matched.availableQuantityMT} MT ready stock in ${matched.dispatchLocation} matching ${buyer.companyName} requirements.`,
         differences: {
-          grainLengthDiff: 0.05,
-          priceDiffPerQuintal: 100,
-          quantityDiffMT: 0,
+          grainLengthDiff: 0.0,
+          priceDiffPerQuintal: priceDiff,
+          quantityDiffMT: Math.abs(matched.availableQuantityMT - req.requiredQuantityMT),
           moistureDiff: 0.2,
-          brokenDiff: 0.5,
-          whitenessDiff: 2.0
+          brokenDiff: 0.2,
+          whitenessDiff: 1.0
         },
-        reasons: ['Grain length matches: 8.35mm', 'Sortex certified 100%', 'Ready stock at Karnal Depot']
+        reasons: [
+          `Grain specs match: ${req.qualitySpecs?.grainLengthMm || 8.35}mm`,
+          'AGMARK & Sortex certified',
+          `Ready stock at ${matched.dispatchLocation}`
+        ]
       };
     });
     return NextResponse.json({ success: true, recommendations });
@@ -168,37 +208,7 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 8. Negotiations
   if (path === 'negotiations/admin/all') {
-    const negs = [
-      {
-        id: 'neg-101',
-        enquiryId: 'enq-301',
-        buyerId: 'buy-prof-001',
-        buyerCompanyName: 'Royal Feast Global Exporters',
-        sellerId: 'sel-prof-001',
-        sellerMillName: 'Taraori Golden Rice Mills',
-        sellerCompanyName: 'Taraori Golden Rice Mills',
-        anonymousListingCode: 'PRG-1025',
-        variety: '1121 Golden Sella Basmati',
-        requestedQuantityMT: 100,
-        agreedQuantityMT: 100,
-        buyerTargetPrice: 8100,
-        sellerAskingPrice: 8200,
-        sellerInitialPrice: 8200,
-        adminNegotiatedPrice: 8150,
-        finalAgreedPrice: 8150,
-        brokeragePerMT: 100,
-        brokeragePerUnit: 100,
-        brokeragePayee: 'BUYER_AND_SELLER_SPLIT',
-        status: 'AGREED',
-        history: [
-          { actor: 'BUYER', note: 'Offered ₹8,100/Qtl for 100 MT' },
-          { actor: 'SELLER', note: 'Quoted ₹8,200/Qtl ex-mill' },
-          { actor: 'ADMIN', note: 'Broker counter-offer settled at ₹8,150/Qtl mutually accepted' }
-        ],
-        updatedAt: new Date().toISOString()
-      }
-    ];
-    return NextResponse.json({ success: true, negotiations: negs });
+    return NextResponse.json({ success: true, negotiations: db.negotiations });
   }
 
   // 9. Purchase Orders
@@ -575,6 +585,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       db.buyerProfiles.push(profile);
     }
 
+    db.persist();
     const token = `pragyam-client-token-${newUser.id}`;
 
     return NextResponse.json(
@@ -596,11 +607,15 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
 
   // 4. Submit Enquiry
   if (path === 'enquiries') {
+    const user = getUserFromRequest(request);
+    const buyer = user ? db.buyerProfiles.find(b => b.userId === user.id) : null;
+    const buyerId = buyer?.id || (db.buyerProfiles.length > 1 ? db.buyerProfiles[1].id : 'buy-prof-001');
+
     const { listingId, requestedQuantityMT, targetPricePerQuintal, buyerNotes } = body;
-    const listing = db.listings.find(l => l.id === listingId) || db.listings[0];
+    const listing = db.listings.find(l => l.id === listingId || l.anonymousCode === listingId) || db.listings[0];
     const newEnq = {
       id: `enq-${Date.now()}`,
-      buyerId: 'buy-prof-001',
+      buyerId,
       listingId: listing.id,
       enquiryCode: `ENQ-2026-${Math.floor(1000 + Math.random() * 9000)}`,
       anonymousListingCode: listing.anonymousCode,
@@ -613,11 +628,16 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       updatedAt: new Date().toISOString()
     };
     db.enquiries.unshift(newEnq);
+    db.persist();
     return NextResponse.json({ success: true, enquiry: newEnq });
   }
 
   // 5. Submit Requirement
   if (path === 'requirements') {
+    const user = getUserFromRequest(request);
+    const buyer = user ? db.buyerProfiles.find(b => b.userId === user.id) : null;
+    const buyerId = buyer?.id || (db.buyerProfiles.length > 1 ? db.buyerProfiles[1].id : 'buy-prof-001');
+
     const rawLoc = body.deliveryLocation;
     const locationStr =
       typeof rawLoc === 'object' && rawLoc !== null
@@ -627,23 +647,23 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
     const qSpecs = body.qualitySpecs || {};
     const newReq = {
       id: `req-${Date.now()}`,
-      buyerId: 'buy-prof-001',
+      buyerId,
       requirementCode: `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: body.category || 'STEAM_RICE',
-      variety: body.variety || '1509 Basmati Steam',
+      category: body.category || 'GOLDEN_SELLA_RICE',
+      variety: body.variety || '1121 Golden Sella Basmati',
       classification: body.classification || 'BASMATI',
-      requiredQuantityMT: Number(body.requiredQuantityMT) || 100,
+      requiredQuantityMT: Number(body.requiredQuantityMT) || 70,
       minQuantityMT: Number(body.minQuantityMT) || 50,
-      maxQuantityMT: Number(body.maxQuantityMT) || 150,
-      targetPricePerQuintal: Number(body.targetPricePerQuintal) || 6800,
-      targetPricePerMT: (Number(body.targetPricePerQuintal) || 6800) * 10,
+      maxQuantityMT: Number(body.maxQuantityMT) || 100,
+      targetPricePerQuintal: Number(body.targetPricePerQuintal) || 8950,
+      targetPricePerMT: (Number(body.targetPricePerQuintal) || 8950) * 10,
       deliveryLocation: locationStr,
       preferredDeliveryDate: body.preferredDeliveryDate || 'Immediate Dispatch',
       paymentTermsOffered: body.paymentTermsOffered || 'Standard Broker Escrow Terms',
       qualitySpecs: {
         grainLengthMm: Number(qSpecs.grainLengthMm || body.grainLengthMm) || 8.35,
         whiteness: Number(qSpecs.whiteness || body.whiteness) || 40.0,
-        moisturePercent: Number(qSpecs.moisturePercent || body.moisturePercent) || 12.5,
+        moisturePercent: Number(qSpecs.moisturePercent || body.moisturePercent) || 12.0,
         brokenPercent: Number(qSpecs.brokenPercent || body.brokenPercent) || 1.0,
         sortex: qSpecs.sortex !== undefined ? qSpecs.sortex : true
       },
@@ -654,27 +674,32 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       updatedAt: new Date().toISOString()
     };
     db.requirements.unshift(newReq);
+    db.persist();
     return NextResponse.json({ success: true, requirement: newReq });
   }
 
   // 6. Add Inventory (Seller)
   if (path === 'inventory') {
+    const user = getUserFromRequest(request);
+    const seller = user ? db.sellerProfiles.find(s => s.userId === user.id) : null;
+    const sellerId = seller?.id || (db.sellerProfiles.length > 2 ? db.sellerProfiles[2].id : 'sel-prof-bansal');
+
     const newListing: any = {
       id: `lst-${Date.now()}`,
-      sellerId: 'sel-prof-001',
+      sellerId,
       anonymousCode: `PRG-${Math.floor(1000 + Math.random() * 9000)}`,
       category: body.category || 'GOLDEN_SELLA_RICE',
       variety: body.variety || '1121 Golden Sella Basmati',
       classification: body.classification || 'BASMATI',
-      availableQuantityMT: Number(body.availableQuantityMT) || 100,
+      availableQuantityMT: Number(body.availableQuantityMT) || 70,
       minOrderQuantityMT: 20,
-      maxOrderQuantityMT: Number(body.availableQuantityMT) || 100,
-      askingPricePerQuintal: Number(body.askingPricePerQuintal) || 8200,
-      brokerageOffered: Number(body.brokerageOffered) || 100,
+      maxOrderQuantityMT: Number(body.availableQuantityMT) || 70,
+      askingPricePerQuintal: Number(body.askingPricePerQuintal) || 9000,
+      brokerageOffered: Number(body.brokerageOffered) || 40,
       brokerageType: body.brokerageType || 'PER_METRIC_TONNE',
-      millLocation: body.dispatchLocation || 'Karnal Mill Hub',
-      dispatchLocation: body.dispatchLocation || 'Karnal Depot',
-      generalizedDistrict: 'Karnal',
+      millLocation: body.dispatchLocation || 'TOHANA Mill Yard, Haryana',
+      dispatchLocation: body.dispatchLocation || 'TOHANA',
+      generalizedDistrict: 'Fatehabad',
       generalizedState: 'Haryana',
       qualitySpecs: {
         grainLengthMm: Number(body.grainLengthMm) || 8.35,
@@ -684,7 +709,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
         foreignMatterPercent: 0.05,
         damagedGrainPercent: 0.5,
         chalkyGrainPercent: 1.0,
-        yellowGrainPercent: 0.5,
+        yellowGrainPercent: 0.4,
         sortex: body.sortex !== false,
         cropYear: '2025-2026'
       },
@@ -701,11 +726,22 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       updatedAt: new Date().toISOString()
     };
     db.listings.unshift(newListing);
+    db.persist();
     return NextResponse.json({ success: true, listing: sanitizeListing(newListing) });
   }
 
   // 7. Confirm Deal in Negotiation
   if (path.includes('confirm-deal')) {
+    const segments = path.split('/');
+    const negId = segments.find(s => s.startsWith('neg-'));
+    const neg = db.negotiations.find(n => n.id === negId) || db.negotiations[db.negotiations.length - 1];
+    if (neg) {
+      neg.status = 'AGREED' as any;
+      if (body.finalAgreedPrice) neg.finalAgreedPrice = Number(body.finalAgreedPrice);
+      if (body.agreedQuantityMT) neg.agreedQuantityMT = Number(body.agreedQuantityMT);
+      neg.updatedAt = new Date().toISOString();
+    }
+    db.persist();
     return NextResponse.json({
       success: true,
       message: 'Deal confirmed and locked at agreed rate. Converted to official Purchase Order.'
@@ -714,40 +750,136 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
 
   // 8. Create Purchase Order
   if (path === 'purchase-orders/admin/create') {
+    const listing = db.listings.find(l => l.id === body.listingId || l.anonymousCode === body.listingId) || db.listings[0];
+    const buyer = db.buyerProfiles.find(b => b.id === body.buyerId) || db.buyerProfiles[0];
+    const seller = db.sellerProfiles.find(s => s.id === body.sellerId) || db.sellerProfiles.find(s => s.id === listing.sellerId) || db.sellerProfiles[0];
+    const quantityMT = Number(body.quantityMT) || 70;
+    const agreedRatePerQuintal = Number(body.agreedRatePerQuintal) || 8950;
+    const brokeragePerMT = Number(body.brokeragePerUnit || body.brokeragePerMT) || 40;
+
     const newPo = {
       id: `po-${Date.now()}`,
       poNumber: `PO-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      enquiryId: body.enquiryId || 'enq-301',
-      listingId: body.listingId || 'lst-1025',
-      buyerId: 'buy-prof-001',
-      sellerId: 'sel-prof-001',
-      intermediaryBroker: 'Pragyam Enterprises (Central Desk)',
-      riceCategory: body.riceCategory || 'GOLDEN_SELLA_RICE',
-      riceVariety: body.riceVariety || '1121 Golden Sella Basmati',
-      quantityMT: Number(body.quantityMT) || 100,
-      quantityQuintals: (Number(body.quantityMT) || 100) * 10,
-      agreedRatePerQuintal: Number(body.agreedRatePerQuintal) || 8150,
-      agreedRatePerMT: (Number(body.agreedRatePerQuintal) || 8150) * 10,
-      totalGoodsValue: (Number(body.quantityMT) || 100) * (Number(body.agreedRatePerQuintal) || 8150) * 10,
-      brokeragePerMT: 100,
-      totalBrokerageAmount: (Number(body.quantityMT) || 100) * 100,
-      brokeragePayee: 'BOTH_SPLIT' as any,
-      paymentTerms: body.paymentTerms || 'Standard Broker Escrow',
-      qualitySpecs: {
+      enquiryId: body.enquiryId || 'enq-haruana-01',
+      listingId: listing.id,
+      buyerId: buyer.id,
+      buyerCompanyName: buyer.companyName,
+      sellerId: seller.id,
+      sellerCompanyName: seller.millName || seller.companyName,
+      intermediaryBroker: 'Pragyam Enterprises (Tohana Central Desk)',
+      riceCategory: listing.category || 'GOLDEN_SELLA_RICE',
+      riceVariety: listing.variety || '1121 Golden Sella Basmati',
+      classification: listing.classification || 'BASMATI',
+      quantityMT,
+      quantityQuintals: quantityMT * 10,
+      agreedRatePerQuintal,
+      agreedRatePerMT: agreedRatePerQuintal * 10,
+      totalGoodsValue: quantityMT * agreedRatePerQuintal * 10,
+      brokerageAmount: quantityMT * brokeragePerMT,
+      brokeragePerMT,
+      totalBrokerageAmount: quantityMT * brokeragePerMT,
+      brokerageType: 'PER_METRIC_TONNE' as any,
+      brokeragePayee: 'BUYER_AND_SELLER_SPLIT' as any,
+      paymentTerms: body.paymentTerms || '10% Advance Escrow, 90% against Loading & Bilty',
+      qualitySpecs: listing.qualitySpecs || {
         grainLengthMm: 8.35,
         whiteness: 40.0,
         moisturePercent: 12.0,
         brokenPercent: 1.0,
-        sortex: true
+        sortex: true,
+        cropYear: '2025-2026'
       },
-      deliveryLocation: body.deliveryLocation || 'Mundra CFS',
-      expectedDispatchDate: '2026-03-10',
-      deliveryDeadline: '2026-03-20',
+      packaging: listing.packaging || 'PP_BAG_50KG',
+      dispatchLocation: body.dispatchLocation || listing.dispatchLocation || 'TOHANA Mill Yard, Haryana',
+      deliveryLocation: body.deliveryLocation || 'TONA Hub / Delhi NCR',
+      deliveryDate: '2026-03-05',
+      expectedDispatchDate: '2026-02-28',
+      deliveryDeadline: '2026-03-05',
       status: PurchaseOrderStatus.PO_ISSUED,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    db.purchaseOrders.unshift(newPo);
+    db.purchaseOrders.unshift(newPo as any);
+
+    // Update matching negotiation
+    const neg = db.negotiations.find(n => n.enquiryId === body.enquiryId || n.anonymousListingCode === listing.anonymousCode);
+    if (neg) {
+      neg.status = 'CONVERTED_TO_PO' as any;
+      neg.updatedAt = new Date().toISOString();
+    }
+
+    // Auto-create Transport Record
+    db.transportRecords.unshift({
+      id: `trp-${Date.now()}`,
+      purchaseOrderId: newPo.id,
+      poId: newPo.id,
+      poNumber: newPo.poNumber,
+      transporterName: 'Tohana Inter-State Logistics',
+      driverName: 'Sarabjeet Singh',
+      driverPhone: '+91 94160 22334',
+      vehicleNumber: 'HR-23-BC-4412',
+      biltyNumber: `LR-TOH-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      ewayBillNumber: `EWB-99${Math.floor(100000 + Math.random() * 900000)}`,
+      loadedQuantityMT: newPo.quantityMT,
+      quantityLoadedMT: newPo.quantityMT,
+      bagCount: newPo.quantityMT * 20,
+      loadingLocation: newPo.dispatchLocation,
+      deliveryLocation: newPo.deliveryLocation,
+      loadingDate: new Date().toISOString(),
+      dispatchDate: new Date().toISOString(),
+      expectedDeliveryDate: new Date(Date.now() + 86400000 * 3).toISOString(),
+      freightCharges: 35000,
+      freightStatus: 'PAID_BY_BUYER',
+      status: TransportStatus.ASSIGNED,
+      statusLogs: [
+        {
+          status: TransportStatus.ASSIGNED,
+          timestamp: new Date().toISOString(),
+          locationNote: 'Vehicle and Driver assigned for Tohana Mandi dispatch'
+        }
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    } as any);
+
+    // Auto-create Invoice
+    db.invoices.unshift({
+      id: `inv-${Date.now()}`,
+      invoiceNumber: `PRG/INV/2026/${Math.floor(100 + Math.random() * 900)}`,
+      invoiceType: 'BROKERAGE_INVOICE',
+      purchaseOrderId: newPo.id,
+      poId: newPo.id,
+      poNumber: newPo.poNumber,
+      issuerName: 'Pragyam Enterprises',
+      issuerPan: 'HSAPB2553Q',
+      bankDetails: 'Bank of Baroda | Tohana | A/C: 53600100009068 | IFSC: BARB0TOHANA (Nikhil Bansal)',
+      billedToRole: UserRole.BUYER,
+      billedToName: buyer.companyName,
+      clientName: buyer.companyName,
+      clientGstin: buyer.gstin || '',
+      sacCode: '998319',
+      hsnSacCode: '998319',
+      brokerageAmount: newPo.totalBrokerageAmount,
+      taxableAmount: newPo.totalBrokerageAmount,
+      cgstPercent: 9.0,
+      cgstRate: 9.0,
+      cgstAmount: Math.round(newPo.totalBrokerageAmount * 0.09),
+      sgstPercent: 9.0,
+      sgstRate: 9.0,
+      sgstAmount: Math.round(newPo.totalBrokerageAmount * 0.09),
+      igstPercent: 0,
+      igstRate: 0,
+      igstAmount: 0,
+      totalTaxAmount: Math.round(newPo.totalBrokerageAmount * 0.18),
+      totalTax: Math.round(newPo.totalBrokerageAmount * 0.18),
+      grandTotal: Math.round(newPo.totalBrokerageAmount * 1.18),
+      status: 'GENERATED' as any,
+      issueDate: new Date().toISOString(),
+      invoiceDate: new Date().toISOString(),
+      dueDate: new Date(Date.now() + 86400000 * 15).toISOString()
+    } as any);
+
+    db.persist();
     return NextResponse.json({ success: true, purchaseOrder: newPo });
   }
 
