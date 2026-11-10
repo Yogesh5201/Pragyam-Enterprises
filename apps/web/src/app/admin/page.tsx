@@ -71,6 +71,7 @@ export default function SuperAdminDashboard() {
   const [sellers, setSellers] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [requirements, setRequirements] = useState<any[]>([]);
+  const [transportRecords, setTransportRecords] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -119,7 +120,8 @@ export default function SuperAdminDashboard() {
         buyersRes,
         sellersRes,
         auditRes,
-        reqRes
+        reqRes,
+        trpRes
       ] = await Promise.all([
         apiRequest('/analytics/admin/summary'),
         apiRequest('/inventory/admin/all'),
@@ -132,6 +134,7 @@ export default function SuperAdminDashboard() {
         apiRequest('/users/admin/sellers'),
         apiRequest('/audit/admin/logs?limit=50'),
         apiRequest('/requirements/admin/all'),
+        apiRequest('/transport/admin/all'),
       ]);
 
       if (metricsRes.success && metricsRes.data) {
@@ -166,6 +169,9 @@ export default function SuperAdminDashboard() {
       }
       if (reqRes.success && reqRes.data) {
         setRequirements(reqRes.data.requirements || []);
+      }
+      if (trpRes.success && trpRes.data) {
+        setTransportRecords(trpRes.data.transportRecords || []);
       }
     } catch (err) {
       console.error('Error fetching admin data', err);
@@ -226,6 +232,8 @@ export default function SuperAdminDashboard() {
         a.click();
         a.remove();
         showNotification(`Excel report for ${dataset} exported successfully.`);
+      } else {
+        setActionError(res.error || `Failed to export ${dataset} report`);
       }
     } catch (e: any) {
       setActionError(e.message);
@@ -238,14 +246,17 @@ export default function SuperAdminDashboard() {
       const endpoint = type === 'po' ? `/purchase-orders/${id}/pdf` : `/invoices/${id}/pdf`;
       const res = await apiRequest(endpoint);
       if (res.success && res.data) {
+        const safeName = (numberStr || type).replace(/[\/\\]/g, '_');
         const url = window.URL.createObjectURL(res.data);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${numberStr}.pdf`;
+        a.download = `${safeName}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        showNotification(`Downloaded ${numberStr}.pdf`);
+        showNotification(`Downloaded ${safeName}.pdf`);
+      } else {
+        setActionError(res.error || `Failed to download ${type}`);
       }
     } catch (e: any) {
       setActionError(e.message);
@@ -757,7 +768,11 @@ export default function SuperAdminDashboard() {
                       <tbody className="divide-y divide-slate-100">
                         {requirements.map((req: any) => (
                           <tr key={req.id} className="hover:bg-slate-50 transition">
-                            <td className="p-3.5 font-mono font-bold text-[#0D3B2E]">{req.requirementCode || req.id}</td>
+                            <td className="p-3.5">
+                              <span className="font-mono font-bold text-[#0D3B2E] block">{req.requirementCode || req.id}</span>
+                              <span className="font-bold text-slate-800 text-[11px] block">{req.buyerCompanyName || 'Buyer'}</span>
+                              <span className="text-[10px] text-gray-500 block">{req.buyerFullName} ({req.buyerPhone})</span>
+                            </td>
                             <td className="p-3.5">
                               <span className="font-bold text-slate-800 block">{req.variety}</span>
                               <span className="text-[10px] text-gray-500">{req.category}</span>
@@ -920,7 +935,14 @@ export default function SuperAdminDashboard() {
 
                       {neg.status === 'AGREED' ? (
                         <button
-                          onClick={() => setSelectedNegForPo(neg)}
+                          onClick={() => {
+                            setSelectedNegForPo(neg);
+                            setNewPoForm({
+                              dispatchLocation: neg.anonymousListingCode === 'PRG-3428' ? 'TOHANA Mill Yard, Haryana' : 'Taraori Mill Depot, Karnal',
+                              deliveryLocation: neg.buyerCompanyName?.includes('haruana') ? 'TONA Hub, Haryana' : 'New Delhi CFS Yard',
+                              paymentTerms: '10% Advance Escrow against Bilty, 90% on destination inspection',
+                            });
+                          }}
                           className="bg-[#0D3B2E] hover:bg-[#166534] text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1 shadow-md"
                         >
                           <FileCheck2 className="w-3.5 h-3.5 text-[#C5A059]" />
@@ -1073,36 +1095,42 @@ export default function SuperAdminDashboard() {
               </div>
 
               <div className="space-y-4">
-                {(orders || []).map(po => {
-                  const transport = po.transportRecord || payments.find(p => p.poId === po.id);
+                {(transportRecords.length > 0 ? transportRecords : orders).map((item: any) => {
+                  const t = transportRecords.find((tr: any) => tr.poNumber === item.poNumber || tr.poId === item.id) || item;
+                  const po = orders.find((o: any) => o.poNumber === t.poNumber || o.id === t.purchaseOrderId) || item;
                   return (
-                    <div key={po.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div key={t.id || po.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                       <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                         <div>
-                          <span className="font-bold text-[#0D3B2E]">{po.poNumber}</span> - <span>{po.riceVariety} ({po.quantityMT} MT)</span>
+                          <span className="font-bold text-[#0D3B2E]">{t.poNumber || po.poNumber}</span> - <span>{po.riceVariety || '1121 Golden Sella Basmati'} ({t.loadedQuantityMT || po.quantityMT || 70} MT)</span>
                         </div>
                         <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg">
-                          Vehicle Assigned
+                          {t.status || 'Vehicle Assigned'}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                         <div>
                           <span className="text-gray-500 block text-[10px]">Vehicle Number</span>
-                          <span className="font-mono font-bold text-slate-900">HR-05-AU-9821</span>
+                          <span className="font-mono font-bold text-slate-900">{t.vehicleNumber || 'HR-23-BC-4412'}</span>
                         </div>
                         <div>
                           <span className="text-gray-500 block text-[10px]">Bilty (LR) Number</span>
-                          <span className="font-mono font-bold text-[#0D3B2E]">LR-KNL-2026-7844</span>
+                          <span className="font-mono font-bold text-[#0D3B2E]">{t.biltyNumber || 'LR-TOH-2026-7844'}</span>
                         </div>
                         <div>
                           <span className="text-gray-500 block text-[10px]">Driver Details</span>
-                          <span className="text-slate-800">Sarabjeet Singh (+91 94160 22334)</span>
+                          <span className="text-slate-800">{t.driverName || 'Sarabjeet Singh'} ({t.driverPhone || '+91 94160 22334'})</span>
                         </div>
                         <div>
-                          <span className="text-gray-500 block text-[10px]">Freight Status</span>
-                          <span className="text-emerald-700 font-semibold">₹42,000 (Paid by Buyer)</span>
+                          <span className="text-gray-500 block text-[10px]">Freight & Transporter</span>
+                          <span className="text-emerald-700 font-semibold">₹{(t.freightCharges || 35000).toLocaleString('en-IN')} ({t.transporterName || 'Tohana Logistics'})</span>
                         </div>
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 flex items-center space-x-2 pt-1 border-t border-slate-50">
+                        <span className="font-semibold text-slate-700">Dispatch Route:</span>
+                        <span>{t.loadingLocation || po.dispatchLocation || 'TOHANA Mill Yard'} ➔ {t.deliveryLocation || po.deliveryLocation || 'TONA Hub'}</span>
                       </div>
                     </div>
                   );

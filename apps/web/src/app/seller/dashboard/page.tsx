@@ -32,14 +32,26 @@ function SellerDashboardContent() {
   const [myListings, setMyListings] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [transports, setTransports] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // Sync tab with URL search parameter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['stock', 'orders', 'dispatch', 'brokerage'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (!isLoading) {
-      if (!isAuthenticated || role !== UserRole.SELLER) {
+      if (!isAuthenticated) {
+        router.push('/login');
+      } else if (role !== UserRole.SELLER && role !== UserRole.SUPER_ADMIN) {
         router.push('/login');
       } else {
         loadData();
@@ -50,15 +62,19 @@ function SellerDashboardContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [listRes, ordRes, payRes] = await Promise.all([
+      const [listRes, ordRes, payRes, trpRes, invRes] = await Promise.all([
         apiRequest('/inventory/seller/my-listings'),
         apiRequest('/purchase-orders/seller/my-orders'),
         apiRequest('/payments/my-payments'),
+        apiRequest('/transport/admin/all'),
+        apiRequest('/invoices/admin/all'),
       ]);
 
       if (listRes.success && listRes.data) setMyListings(listRes.data.listings || []);
       if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders || []);
       if (payRes.success && payRes.data) setPayments(payRes.data.payments || []);
+      if (trpRes.success && trpRes.data) setTransports(trpRes.data.transportRecords || []);
+      if (invRes.success && invRes.data) setInvoices(invRes.data.invoices || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -70,14 +86,15 @@ function SellerDashboardContent() {
     try {
       const res = await apiRequest(`/purchase-orders/${poId}/pdf`);
       if (res.success && res.data) {
+        const safePoName = (poNumber || 'PO-Contract').replace(/[\/\\]/g, '_');
         const url = window.URL.createObjectURL(res.data);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${poNumber}_Seller.pdf`;
+        a.download = `${safePoName}_Seller.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        setActionSuccess(`Downloaded official contract ${poNumber}.pdf`);
+        setActionSuccess(`Downloaded official contract ${safePoName}.pdf`);
         setTimeout(() => setActionSuccess(null), 3000);
       }
     } catch (e) {
@@ -85,7 +102,27 @@ function SellerDashboardContent() {
     }
   };
 
-  if (isLoading || !isAuthenticated || role !== UserRole.SELLER) {
+  const handleDownloadInvoice = async (invId: string, invNumber: string) => {
+    try {
+      const res = await apiRequest(`/invoices/${invId}/pdf`);
+      if (res.success && res.data) {
+        const safeInvName = (invNumber || 'Invoice').replace(/[\/\\]/g, '_');
+        const url = window.URL.createObjectURL(res.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeInvName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setActionSuccess(`Downloaded official brokerage invoice ${safeInvName}.pdf`);
+        setTimeout(() => setActionSuccess(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  if (isLoading || !isAuthenticated || (role !== UserRole.SELLER && role !== UserRole.SUPER_ADMIN)) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-3">
@@ -258,57 +295,106 @@ function SellerDashboardContent() {
       {activeTab === 'dispatch' && (
         <div className="space-y-4">
           <h2 className="text-lg font-black text-slate-800">Dispatch & Bilty Updates</h2>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
-            <span className="font-bold text-[#0D3B2E] block">Active Dispatch for PE-PO-2026-001:</span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-xl">
-                <span className="text-gray-400 block text-[10px]">Vehicle Assigned</span>
-                <span className="font-mono font-bold text-slate-900">HR-05-AU-9821</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl">
-                <span className="text-gray-400 block text-[10px]">Bilty (LR) Number</span>
-                <span className="font-mono font-bold text-[#0D3B2E]">LR-KNL-2026-7844</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl">
-                <span className="text-gray-400 block text-[10px]">Status</span>
-                <span className="font-bold text-blue-700">IN TRANSIT TO DELHI</span>
-              </div>
+          {transports.length === 0 ? (
+            <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500">
+              No active dispatches yet. Consignment transport details will appear here once loaded at the mill depot.
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {transports.map((t: any) => (
+                <div key={t.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <span className="font-bold text-[#0D3B2E]">Consignment for PO: {t.poNumber}</span>
+                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 font-bold rounded">
+                      {t.status || 'IN TRANSIT'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <span className="text-gray-400 block text-[10px]">Vehicle Assigned</span>
+                      <span className="font-mono font-bold text-slate-900">{t.vehicleNumber}</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <span className="text-gray-400 block text-[10px]">Bilty (LR) Number</span>
+                      <span className="font-mono font-bold text-[#0D3B2E]">{t.biltyNumber}</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <span className="text-gray-400 block text-[10px]">Driver Details</span>
+                      <span className="font-bold text-slate-800">{t.driverName} ({t.driverPhone})</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <span className="text-gray-400 block text-[10px]">Route Destination</span>
+                      <span className="font-bold text-blue-700 truncate">{t.deliveryLocation}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Tab 4: Brokerage Settlements */}
+      {/* Tab 4: Brokerage Settlements & Tax Invoices */}
       {activeTab === 'brokerage' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-black text-slate-800">Brokerage Settlements Ledger</h2>
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden text-xs">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 border-b font-bold text-slate-600">
-                <tr>
-                  <th className="p-3">Reference / UTR</th>
-                  <th className="p-3">PO Number</th>
-                  <th className="p-3">Brokerage Fee</th>
-                  <th className="p-3">Method</th>
-                  <th className="p-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {(payments || []).map(pay => (
-                  <tr key={pay.id}>
-                    <td className="p-3 font-mono">{pay.referenceNumber}</td>
-                    <td className="p-3 font-bold text-[#0D3B2E]">{pay.poNumber}</td>
-                    <td className="p-3 font-bold text-amber-900">₹{pay.amount?.toLocaleString('en-IN')}</td>
-                    <td className="p-3">{pay.method}</td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        {pay.status}
-                      </span>
-                    </td>
-                  </tr>
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-lg font-black text-slate-800">Official Brokerage Invoices</h2>
+            {invoices.length === 0 ? (
+              <div className="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">
+                No invoices generated yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {invoices.map((inv: any) => (
+                  <div key={inv.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                      <span className="font-mono font-bold text-[#0D3B2E] text-xs block">{inv.invoiceNumber}</span>
+                      <span className="text-xs text-slate-500 block">PO: {inv.poNumber}</span>
+                      <span className="text-sm font-black text-slate-900 mt-1 block">₹{inv.taxableAmount?.toLocaleString('en-IN')} Brokerage</span>
+                    </div>
+                    <button
+                      onClick={() => handleDownloadInvoice(inv.id, inv.invoiceNumber)}
+                      className="bg-[#0D3B2E] hover:bg-[#166534] text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#C5A059]" />
+                      <span>PDF</span>
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-lg font-black text-slate-800">Brokerage Settlements Ledger</h2>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden text-xs">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b font-bold text-slate-600">
+                  <tr>
+                    <th className="p-3">Reference / UTR</th>
+                    <th className="p-3">PO Number</th>
+                    <th className="p-3">Brokerage Fee</th>
+                    <th className="p-3">Method</th>
+                    <th className="p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {(payments || []).map(pay => (
+                    <tr key={pay.id}>
+                      <td className="p-3 font-mono">{pay.referenceNumber}</td>
+                      <td className="p-3 font-bold text-[#0D3B2E]">{pay.poNumber}</td>
+                      <td className="p-3 font-bold text-amber-900">₹{pay.amount?.toLocaleString('en-IN')}</td>
+                      <td className="p-3">{pay.method}</td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          {pay.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

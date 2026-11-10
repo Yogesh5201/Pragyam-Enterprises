@@ -53,6 +53,19 @@ export default function MobileAppShowcasePage() {
   // In-app sample stock
   const [simListings, setSimListings] = useState([
     {
+      id: 'PRG-3428',
+      variety: '1121 Golden Sella Basmati',
+      category: 'Sella Rice',
+      volumeMT: 70,
+      pricePerQtl: 9000,
+      grainLength: '8.35 mm',
+      moisture: '12.0%',
+      broken: '1.0%',
+      sortex: true,
+      location: 'TOHANA Mill Yard, Haryana',
+      crop: '2025-2026'
+    },
+    {
       id: 'PRG-1025',
       variety: '1121 Golden Sella Basmati',
       category: 'Golden Sella Rice',

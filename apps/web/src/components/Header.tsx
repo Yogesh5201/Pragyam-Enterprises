@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 
 export function Header() {
-  const { user, role, isAuthenticated, logout, language, setLanguage, t } = useAuth();
+  const { user, role, isAuthenticated, logout, language, setLanguage, t, quickLoginAs } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -466,6 +466,45 @@ export function Header() {
                         <Smartphone className="w-4 h-4 text-[#C5A059]" />
                         <span>Open Mobile App Simulator</span>
                       </Link>
+                    </div>
+
+                    <div className="py-1 border-t border-slate-100 bg-slate-50/50">
+                      <div className="px-4 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Quick Account Switch
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await quickLoginAs('ADMIN');
+                          router.push('/admin');
+                        }}
+                        className="w-full text-left px-4 py-1.5 text-xs font-semibold hover:bg-slate-100 flex items-center justify-between text-slate-700"
+                      >
+                        <span>👑 Super Admin Desk</span>
+                        {role === UserRole.SUPER_ADMIN && <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">Active</span>}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await quickLoginAs('SELLER');
+                          router.push('/seller/dashboard');
+                        }}
+                        className="w-full text-left px-4 py-1.5 text-xs font-semibold hover:bg-slate-100 flex items-center justify-between text-slate-700"
+                      >
+                        <span>🌾 Bansal Traders (Seller)</span>
+                        {role === UserRole.SELLER && <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">Active</span>}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await quickLoginAs('BUYER');
+                          router.push('/buyer/dashboard');
+                        }}
+                        className="w-full text-left px-4 py-1.5 text-xs font-semibold hover:bg-slate-100 flex items-center justify-between text-slate-700"
+                      >
+                        <span>🏢 haruana (Buyer)</span>
+                        {role === UserRole.BUYER && <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">Active</span>}
+                      </button>
                     </div>
 
                     <div className="pt-1 border-t border-slate-100">

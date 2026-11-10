@@ -411,9 +411,9 @@ export async function generateInvoicePdfBuffer(invoice: any): Promise<Buffer> {
   page.drawRectangle({ x: 40, y: 800, width: 515, height: 6, color: COLOR_EMERALD });
 
   page.drawText(FIRM_INFO.name, { x: 40, y: 775, size: 20, font: fontBold, color: COLOR_EMERALD });
-  page.drawText('TAX INVOICE - BROKERAGE & INTERMEDIARY COMMISSION', { x: 40, y: 758, size: 9.5, font: fontBold, color: COLOR_GOLD });
+  page.drawText('OFFICIAL COMMISSION BILL & BROKERAGE INVOICE', { x: 40, y: 758, size: 9.5, font: fontBold, color: COLOR_GOLD });
   page.drawText(FIRM_INFO.address, { x: 40, y: 742, size: 8.5, font, color: COLOR_MUTED });
-  page.drawText(`PAN: ${FIRM_INFO.pan}   |   Contact: ${FIRM_INFO.phone}   |   Email: ${FIRM_INFO.email}`, { x: 40, y: 728, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`Income Tax PAN: ${FIRM_INFO.pan}   |   Contact: ${FIRM_INFO.phone}   |   Email: ${FIRM_INFO.email}`, { x: 40, y: 728, size: 8, font, color: COLOR_MUTED });
 
   page.drawLine({ start: { x: 40, y: 718 }, end: { x: 555, y: 718 }, thickness: 1, color: COLOR_BORDER });
 
@@ -425,39 +425,35 @@ export async function generateInvoicePdfBuffer(invoice: any): Promise<Buffer> {
 
   // Billed To Box
   page.drawRectangle({ x: 40, y: 605, width: 515, height: 58, borderColor: COLOR_BORDER, borderWidth: 1, color: COLOR_LIGHT_BG });
-  page.drawText('BILLED TO (CLIENT):', { x: 50, y: 648, size: 8.5, font: fontBold, color: COLOR_EMERALD });
+  page.drawText('BILLED TO (COMMERCIAL COUNTERPARTY):', { x: 50, y: 648, size: 8.5, font: fontBold, color: COLOR_EMERALD });
   page.drawText(invoice.clientName || 'Royal Feast Global Exporters Pvt Ltd', { x: 50, y: 633, size: 9, font: fontBold, color: COLOR_DARK });
   page.drawText(`Reference Purchase Order: ${invoice.poNumber || 'PO-2026-9042'}`, { x: 50, y: 618, size: 8, font, color: COLOR_MUTED });
-  page.drawText(`PAN Reference: ${FIRM_INFO.pan}`, { x: 350, y: 618, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`PAN: ${FIRM_INFO.pan} (Commercial Commission Agency)`, { x: 310, y: 618, size: 8, font, color: COLOR_MUTED });
 
   // Table Header
   page.drawRectangle({ x: 40, y: 560, width: 515, height: 24, color: rgb(0.90, 0.93, 0.96) });
-  page.drawText('DESCRIPTION OF SERVICE', { x: 48, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
-  page.drawText('SAC CODE', { x: 300, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
-  page.drawText('TAXABLE VALUE (INR)', { x: 420, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('DESCRIPTION OF BROKERAGE SERVICE', { x: 48, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('SAC / COMMODITY', { x: 300, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
+  page.drawText('BROKERAGE FEE (INR)', { x: 420, y: 568, size: 8, font: fontBold, color: COLOR_DARK });
 
   // Table Row
-  const taxable = Number(invoice.taxableAmount || invoice.brokerageAmount) || 37000;
-  page.drawText('Agricultural Commodity & Rice Brokerage Intermediary Commission', { x: 48, y: 540, size: 8, font, color: COLOR_DARK });
-  page.drawText(invoice.sacCode || invoice.hsnSacCode || '998319', { x: 300, y: 540, size: 8, font, color: COLOR_DARK });
-  page.drawText(`INR ${taxable.toLocaleString('en-IN')}`, { x: 420, y: 540, size: 8.5, font: fontBold, color: COLOR_DARK });
+  const brokerageTotal = Number(invoice.taxableAmount || invoice.brokerageAmount) || 37000;
+  page.drawText('Agricultural Paddy/Rice Brokerage & Trade Mediation Commission', { x: 48, y: 540, size: 8, font, color: COLOR_DARK });
+  page.drawText('SAC 998319 (Paddy/Rice)', { x: 300, y: 540, size: 8, font, color: COLOR_DARK });
+  page.drawText(`INR ${brokerageTotal.toLocaleString('en-IN')}`, { x: 420, y: 540, size: 8.5, font: fontBold, color: COLOR_DARK });
 
   page.drawLine({ start: { x: 40, y: 526 }, end: { x: 555, y: 526 }, thickness: 0.5, color: COLOR_BORDER });
 
-  // Tax Breakdown
-  const cgst = Number(invoice.cgstAmount) || 3330;
-  const sgst = Number(invoice.sgstAmount) || 3330;
-  const grandTotal = taxable + cgst + sgst;
+  // Tax Breakdown (Zero GST as requested)
+  page.drawText('Brokerage Commission Fee:', { x: 280, y: 505, size: 8, font, color: COLOR_MUTED });
+  page.drawText(`INR ${brokerageTotal.toLocaleString('en-IN')}`, { x: 440, y: 505, size: 8, font, color: COLOR_DARK });
 
-  page.drawText('Central GST (CGST) @ 9.0%:', { x: 280, y: 505, size: 8, font, color: COLOR_MUTED });
-  page.drawText(`INR ${cgst.toLocaleString('en-IN')}`, { x: 440, y: 505, size: 8, font, color: COLOR_DARK });
-
-  page.drawText('State GST (SGST) @ 9.0%:', { x: 280, y: 488, size: 8, font, color: COLOR_MUTED });
-  page.drawText(`INR ${sgst.toLocaleString('en-IN')}`, { x: 440, y: 488, size: 8, font, color: COLOR_DARK });
+  page.drawText('Goods & Services Tax (GST):', { x: 280, y: 488, size: 8, font, color: COLOR_MUTED });
+  page.drawText('NIL / Non-GST Entity', { x: 440, y: 488, size: 8, font: fontBold, color: COLOR_EMERALD });
 
   page.drawLine({ start: { x: 280, y: 476 }, end: { x: 555, y: 476 }, thickness: 1, color: COLOR_EMERALD });
-  page.drawText('GRAND TOTAL:', { x: 280, y: 460, size: 10, font: fontBold, color: COLOR_EMERALD });
-  page.drawText(`INR ${grandTotal.toLocaleString('en-IN')}`, { x: 440, y: 460, size: 10, font: fontBold, color: COLOR_EMERALD });
+  page.drawText('TOTAL PAYABLE:', { x: 280, y: 460, size: 10, font: fontBold, color: COLOR_EMERALD });
+  page.drawText(`INR ${brokerageTotal.toLocaleString('en-IN')}`, { x: 440, y: 460, size: 10, font: fontBold, color: COLOR_EMERALD });
 
   // Bank Remittance
   page.drawRectangle({ x: 40, y: 380, width: 515, height: 60, borderColor: COLOR_BORDER, borderWidth: 1, color: COLOR_LIGHT_BG });

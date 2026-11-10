@@ -34,14 +34,25 @@ function BuyerDashboardContent() {
   const [requirements, setRequirements] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [transports, setTransports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [isRequirementModalOpen, setIsRequirementModalOpen] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // Sync tab with URL search parameter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['requirements', 'enquiries', 'orders', 'dispatch', 'payments'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (!isLoading) {
-      if (!isAuthenticated || role !== UserRole.BUYER) {
+      if (!isAuthenticated) {
+        router.push('/login');
+      } else if (role !== UserRole.BUYER && role !== UserRole.SUPER_ADMIN) {
         router.push('/login');
       } else {
         loadData();
@@ -52,17 +63,19 @@ function BuyerDashboardContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [enqRes, reqRes, ordRes, payRes] = await Promise.all([
+      const [enqRes, reqRes, ordRes, payRes, trpRes] = await Promise.all([
         apiRequest('/enquiries/my-enquiries'),
         apiRequest('/requirements/my-requirements'),
         apiRequest('/purchase-orders/buyer/my-orders'),
         apiRequest('/payments/my-payments'),
+        apiRequest('/transport/admin/all'),
       ]);
 
       if (enqRes.success && enqRes.data) setEnquiries(enqRes.data.enquiries || []);
       if (reqRes.success && reqRes.data) setRequirements(reqRes.data.requirements || []);
       if (ordRes.success && ordRes.data) setOrders(ordRes.data.purchaseOrders || []);
       if (payRes.success && payRes.data) setPayments(payRes.data.payments || []);
+      if (trpRes.success && trpRes.data) setTransports(trpRes.data.transportRecords || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -74,14 +87,15 @@ function BuyerDashboardContent() {
     try {
       const res = await apiRequest(`/purchase-orders/${poId}/pdf`);
       if (res.success && res.data) {
+        const safePoName = (poNumber || 'PO-Official').replace(/[\/\\]/g, '_');
         const url = window.URL.createObjectURL(res.data);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${poNumber}.pdf`;
+        a.download = `${safePoName}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        setActionSuccess(`Downloaded official contract ${poNumber}.pdf`);
+        setActionSuccess(`Downloaded official contract ${safePoName}.pdf`);
         setTimeout(() => setActionSuccess(null), 3000);
       }
     } catch (e) {
@@ -89,7 +103,7 @@ function BuyerDashboardContent() {
     }
   };
 
-  if (isLoading || !isAuthenticated || role !== UserRole.BUYER) {
+  if (isLoading || !isAuthenticated || (role !== UserRole.BUYER && role !== UserRole.SUPER_ADMIN)) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center space-y-3">
@@ -179,9 +193,11 @@ function BuyerDashboardContent() {
                         {e.adminStatus}
                       </span>
                     </div>
-                    <span className="text-sm font-bold text-slate-900 block mt-1">
-                      {e.variety} ({e.category?.replace('_', ' ')})
-                    </span>
+                    {(e.variety || e.category) && (
+                      <span className="text-sm font-bold text-slate-900 block mt-1">
+                        {e.variety || '1121 Golden Sella Basmati'}{e.category ? ` (${e.category.replace(/_/g, ' ')})` : ''}
+                      </span>
+                    )}
                     <span className="text-xs text-slate-600">
                       Requested: <strong>{e.requestedQuantityMT} MT</strong> | Target: <strong>₹{e.targetPricePerQuintal}/Qtl</strong>
                     </span>
@@ -216,7 +232,7 @@ function BuyerDashboardContent() {
                 <div key={r.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
-                      <span className="font-mono font-bold text-[#0D3B2E]">{r.anonymousCode}</span>
+                      <span className="font-mono font-bold text-[#0D3B2E]">{r.requirementCode || r.id}</span>
                       <span className="text-xs font-bold text-slate-800">{r.variety}</span>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800">
@@ -300,30 +316,42 @@ function BuyerDashboardContent() {
       {activeTab === 'dispatch' && (
         <div className="space-y-4">
           <h2 className="text-lg font-black text-slate-800">Consignment Dispatch & Transport Tracking</h2>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex justify-between items-center border-b pb-3 text-xs">
-              <span className="font-bold text-[#0D3B2E]">Consignment for PO: PE-PO-2026-001</span>
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 font-bold rounded">IN TRANSIT</span>
+          {transports.length === 0 ? (
+            <div className="bg-white p-8 rounded-2xl border text-center text-xs text-slate-500">
+              No active dispatches yet. Consignment transport details will appear here once loaded at the mill depot.
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div>
-                <span className="text-gray-400 block text-[10px]">Vehicle No</span>
-                <span className="font-mono font-bold text-slate-800">HR-05-AU-9821</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[10px]">Bilty (LR) No</span>
-                <span className="font-mono font-bold text-[#0D3B2E]">LR-KNL-2026-7844</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[10px]">Driver Contact</span>
-                <span className="font-bold text-slate-800">Sarabjeet Singh (+91 94160 22334)</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[10px]">Expected Destination</span>
-                <span className="font-bold text-slate-800">Delhi CFS Yard</span>
-              </div>
+          ) : (
+            <div className="space-y-3">
+              {transports.map((t: any) => (
+                <div key={t.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center border-b pb-3 text-xs">
+                    <span className="font-bold text-[#0D3B2E]">Consignment for PO: {t.poNumber}</span>
+                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 font-bold rounded">
+                      {t.status || 'IN TRANSIT'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Vehicle Assigned</span>
+                      <span className="font-mono font-bold text-slate-800">{t.vehicleNumber}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Bilty (LR) Number</span>
+                      <span className="font-mono font-bold text-[#0D3B2E]">{t.biltyNumber}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Driver Details</span>
+                      <span className="font-bold text-slate-800">{t.driverName} ({t.driverPhone})</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Route</span>
+                      <span className="font-bold text-slate-800">{t.loadingLocation} ➔ {t.deliveryLocation}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
       )}
 

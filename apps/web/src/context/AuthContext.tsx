@@ -94,13 +94,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: 'exports@royalfeast.com',
+            email: 'buyer-haruana@pragyam.com',
             password: 'Pragyam@2026',
           }),
         });
         const data = await res.json();
         if (data.success) {
           login(data.token, data.user);
+        } else {
+          // fallback
+          const fbRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: 'exports@royalfeast.com',
+              password: 'Pragyam@2026',
+            }),
+          });
+          const fbData = await fbRes.json();
+          if (fbData.success) login(fbData.token, fbData.user);
         }
       } else {
         // SELLER
@@ -108,13 +120,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: 'taraori@mills.com',
+            email: 'nikhilbansal9896@gmail.com',
             password: 'Pragyam@2026',
           }),
         });
         const data = await res.json();
         if (data.success) {
           login(data.token, data.user);
+        } else {
+          // fallback
+          const fbRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: 'taraori@mills.com',
+              password: 'Pragyam@2026',
+            }),
+          });
+          const fbData = await fbRes.json();
+          if (fbData.success) login(fbData.token, fbData.user);
         }
       }
     } catch (e) {

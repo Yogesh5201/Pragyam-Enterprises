@@ -143,12 +143,31 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 5. Requirements
   if (path === 'requirements/my-requirements' || path === 'requirements/admin/all' || path === 'requirements') {
-    return NextResponse.json({ success: true, requirements: db.requirements });
+    const enriched = db.requirements.map(req => {
+      const buyer = db.buyerProfiles.find(b => b.id === req.buyerId) || db.buyerProfiles[0];
+      return {
+        ...req,
+        buyerCompanyName: buyer?.companyName || 'haruana',
+        buyerFullName: buyer?.fullName || 'BANAN',
+        buyerPhone: buyer?.phone || '+91 9896346337',
+        buyerCity: buyer?.city || 'TONA',
+        buyerState: buyer?.state || 'Haryana',
+      };
+    });
+    return NextResponse.json({ success: true, requirements: enriched });
   }
 
   // 6. Enquiries
   if (path === 'enquiries/my-enquiries' || path === 'enquiries') {
-    return NextResponse.json({ success: true, enquiries: db.enquiries });
+    const enriched = db.enquiries.map(enq => {
+      const listing = db.listings.find(l => l.id === enq.listingId || l.anonymousCode === enq.anonymousListingCode);
+      return {
+        ...enq,
+        variety: (enq as any).variety || listing?.variety || '1121 Golden Sella Basmati',
+        category: (enq as any).category || listing?.category || 'GOLDEN_SELLA_RICE',
+      };
+    });
+    return NextResponse.json({ success: true, enquiries: enriched });
   }
 
   // 7. Matching Recommendations (AI Broker Matching)
@@ -232,11 +251,12 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
     const poId = segments[1];
     const po = db.purchaseOrders.find(p => p.id === poId || p.poNumber === poId) || db.purchaseOrders[0];
     const pdfBuf = await generatePurchaseOrderPdfBuffer(po);
-    return new NextResponse(pdfBuf, {
+    const safePoNum = (po.poNumber || 'PO-2026-9042').replace(/[\/\\]/g, '_');
+    return new NextResponse(new Uint8Array(pdfBuf), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${po.poNumber || 'PO-2026-9042'}.pdf"`
+        'Content-Disposition': `attachment; filename="${safePoNum}.pdf"`
       }
     });
   }
@@ -247,8 +267,8 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
     const invId = segments[1];
     const inv = db.invoices.find(i => i.id === invId || i.invoiceNumber === invId) || db.invoices[0];
     const pdfBuf = await generateInvoicePdfBuffer(inv);
-    const safeInvNum = (inv.invoiceNumber || 'Invoice').replace(/\//g, '_');
-    return new NextResponse(pdfBuf, {
+    const safeInvNum = (inv.invoiceNumber || 'Invoice').replace(/[\/\\]/g, '_');
+    return new NextResponse(new Uint8Array(pdfBuf), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
@@ -334,17 +354,31 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
   // 16. Users (Admin directory)
   if (path === 'users/admin/buyers') {
-    return NextResponse.json({ success: true, buyers: db.buyerProfiles });
+    const buyers = db.buyerProfiles.map(b => {
+      const u = db.users.find(user => user.id === b.userId);
+      return {
+        ...b,
+        email: u?.email || 'buyer@pragyam.com'
+      };
+    });
+    return NextResponse.json({ success: true, buyers });
   }
   if (path === 'users/admin/sellers') {
-    return NextResponse.json({ success: true, sellers: db.sellerProfiles });
+    const sellers = db.sellerProfiles.map(s => {
+      const u = db.users.find(user => user.id === s.userId);
+      return {
+        ...s,
+        email: u?.email || 'seller@pragyam.com'
+      };
+    });
+    return NextResponse.json({ success: true, sellers });
   }
 
   // 17. Genuine Excel (.xlsx) Export
   if (path.startsWith('export/admin/excel/')) {
     const dataset = path.replace('export/admin/excel/', '');
     const xlsxBuf = generateExcelWorkbook(dataset);
-    return new NextResponse(xlsxBuf, {
+    return new NextResponse(new Uint8Array(xlsxBuf), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -421,7 +455,8 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 }
 
 export async function POST(request: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path.join('/');
+  const rawPath = params.path.join('/');
+  const path = rawPath.replace(/^\/+|\/+$/g, '').toLowerCase();
   let body: any = {};
   try {
     body = await request.json();
@@ -430,7 +465,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
   }
 
   // 1. Super Admin Login
-  if (path === 'auth/admin/login') {
+  if (path === 'auth/admin/login' || path.endsWith('admin/login')) {
     const { email, password, mfaCode } = body;
     if (email !== 'admin@pragyam.com' || password !== 'Pragyam@Admin2026!') {
       return NextResponse.json({ success: false, error: 'Invalid administrator credentials.' }, { status: 401 });
@@ -457,7 +492,7 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
   }
 
   // 2. Buyer & Seller Login
-  if (path === 'auth/login') {
+  if (path === 'auth/login' || path.endsWith('auth/login')) {
     const { email, password } = body;
     const user = db.findUser(email);
 
@@ -489,7 +524,10 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
   if (
     path === 'auth/register/seller' ||
     path === 'auth/register/buyer' ||
-    path === 'auth/register'
+    path === 'auth/register' ||
+    path.endsWith('register/seller') ||
+    path.endsWith('register/buyer') ||
+    path.endsWith('register')
   ) {
     const isSeller = path.includes('seller') || body.role === UserRole.SELLER || body.role === 'SELLER';
     const {
@@ -879,12 +917,44 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
       dueDate: new Date(Date.now() + 86400000 * 15).toISOString()
     } as any);
 
+    // Auto-create Payment Record (10% advance escrow)
+    const advanceAmount = Math.round(newPo.totalGoodsValue * 0.1);
+    db.payments.unshift({
+      id: `pay-${Date.now()}`,
+      purchaseOrderId: newPo.id,
+      poId: newPo.id,
+      poNumber: newPo.poNumber,
+      payerName: buyer.companyName,
+      payerId: buyer.id,
+      payerRole: 'BUYER',
+      amount: advanceAmount,
+      paymentType: 'COMMODITY_ADVANCE' as any,
+      paymentMethod: 'RTGS' as any,
+      method: 'RTGS Escrow Transfer',
+      referenceNumber: `RTGS-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+      paymentReference: `RTGS-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+      paymentDate: new Date().toISOString(),
+      status: 'VERIFIED' as any,
+      transactionDate: new Date().toISOString(),
+      verifiedByAdmin: true,
+      notes: '10% Advance deposit verified in Pragyam Central Escrow Desk.'
+    } as any);
+
     db.persist();
     return NextResponse.json({ success: true, purchaseOrder: newPo });
   }
 
-  // 9. Verify Payment
+  // 9. Verify Payment (POST)
   if (path.includes('verify')) {
+    const segments = path.split('/');
+    const payId = segments.find(s => s.startsWith('pay-')) || segments[2];
+    const pay = db.payments.find(p => p.id === payId) || db.payments[0];
+    if (pay) {
+      pay.status = 'VERIFIED' as any;
+      (pay as any).verifiedByAdmin = true;
+      (pay as any).updatedAt = new Date().toISOString();
+    }
+    db.persist();
     return NextResponse.json({
       success: true,
       message: 'Payment verified and credited to Pragyam Brokerage Escrow.'
@@ -909,6 +979,33 @@ export async function PUT(request: NextRequest, { params }: { params: { path: st
     body = await request.json();
   } catch (e) {
     // empty body
+  }
+
+  // Handle PO status update
+  if (path.includes('purchase-orders') && path.includes('status')) {
+    const segments = path.split('/');
+    const poId = segments.find(s => s.startsWith('po-') || s.startsWith('PO-')) || segments[2];
+    const po = db.purchaseOrders.find(p => p.id === poId || p.poNumber === poId) || db.purchaseOrders[0];
+    if (po && body.status) {
+      po.status = body.status;
+      (po as any).updatedAt = new Date().toISOString();
+    }
+    db.persist();
+    return NextResponse.json({ success: true, message: `PO status updated to ${body.status}` });
+  }
+
+  // Handle payment verify (PUT)
+  if (path.includes('verify')) {
+    const segments = path.split('/');
+    const payId = segments.find(s => s.startsWith('pay-')) || segments[2];
+    const pay = db.payments.find(p => p.id === payId) || db.payments[0];
+    if (pay) {
+      pay.status = 'VERIFIED' as any;
+      (pay as any).verifiedByAdmin = true;
+      (pay as any).updatedAt = new Date().toISOString();
+    }
+    db.persist();
+    return NextResponse.json({ success: true, message: 'Payment verified and ledger updated.' });
   }
 
   if (path.includes('status')) {
